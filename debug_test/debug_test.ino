@@ -54,6 +54,9 @@ void read_altimeter() {
       Serial.println();
   }
   else{
-    Serial.println("In debug mode");
+     if (Serial.available() > 0) {
+         int x = Serial.read();
+         Serial.write(x);
+        }
   }
 }
