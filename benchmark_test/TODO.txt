@@ -1,0 +1,11 @@
+TODO list for reading from EEPROM
+
+Create switch case for every velocity box and altitude box
+	Velocity: 16 cases, sets first 4 bits for address.
+
+	Altitude: 32 cases, sets last 5 bits for address.
+
+Concatanate the two binary values.
+
+Use the first 8 bits for EEPROM adress, which gets 8 bits, last bit on the original 
+binary number will refer to either the first half or second half of the new binary number.
