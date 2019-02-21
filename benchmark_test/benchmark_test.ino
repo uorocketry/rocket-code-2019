@@ -9,7 +9,7 @@ void loop() {
   
   
 
-  Serial.println(function2(20, 80)==12);
+  Serial.println(function2(20, 80)==12); // test case to see if lookup table works, more test cases below
   
   /**
   Serial.println(function2(20, 110)==15);
@@ -51,19 +51,20 @@ void loop() {
   Serial.println(function2(20, 1910)==3);
   delay(1000);
   **/
-  //Compute the time it took
+  
   
   delay(1000);
 }
-
+//computational method
 double function1(double velocity, double brake_deploy){;
   double drag = 0.00912129504354*(brake_deploy + 0.484797983795)*square(velocity);
   return drag;
 }
-
+//gets airbrake from lookup table
 int function2(int velocity, int altitude){
-  unsigned long start = micros();
-  unsigned int first_four_bits;
+  unsigned long start = micros();//starts timer
+  unsigned int first_four_bits; // first four bits of the address
+  //switch case sets first four bits of address based off the velocity
   switch(velocity) {
     case 0 ... 49:
       first_four_bits = 0b0000;
@@ -129,6 +130,7 @@ int function2(int velocity, int altitude){
       first_four_bits = 0b1111;
       break;
   }
+  //switch case last five bits of address based off the altitude
   unsigned int last_five_bits;
   switch(altitude){
     case 0 ... 99:
@@ -259,19 +261,20 @@ int function2(int velocity, int altitude){
       last_five_bits = 0b11111;
       break;
   }
-  int x = first_four_bits*16+(last_five_bits/2);
-  int b = EEPROM.read(x);
-  int percent;
-  if(last_five_bits%2==0){
-    percent = b/16;
+  //x is address
+  int x = first_four_bits*16+(last_five_bits/2); // concatanates both adress components arithmetically
+  int b = EEPROM.read(x); // gets EEPROM value at address x(8 bit int)
+  int percent; // airbreak percent 
+  if(last_five_bits%2==0){ // if last 9th bit is 0 it uses the first 4 bits of EEPROM value at x
+    percent = b/16; // divides by 16 getting rid of the last 4 bits, only leaving the first 4 bits
   }
   else {
-    percent = b-(b/16)*16;
+    percent = b-(b/16)*16; // gets last 4 bits 
   }
-  unsigned long endTime = micros();
-  unsigned long delta = endTime - start;
+  unsigned long endTime = micros(); // ends timer
+  unsigned long delta = endTime - start; //gets time elapsed
   
-  Serial.println(delta);
-  return percent;
+  Serial.println(delta); // prints time elapsed
+  return percent; // return percent
   
 }
