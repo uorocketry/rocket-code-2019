@@ -1,14 +1,91 @@
 #!/usr/bin/python3
 
-import serial
-import time
+import serial, time, re
+
+######
+## constants
+######
+serial_speeds = {2400: 2, 4800: 4, 9600: 9, 19200: 19, 38400: 38, 57600: 57, 115200: 115}
+air_speeds = (4, 8, 16, 24, 32, 64, 96, 128, 192, 250)
+txpowers = range(1,31)
 
 
 def print_line():
-    read_data = ser.read()
-    print(read_data.decode() + ', ')
+    read_data = ser.readline()
+    print(read_data.decode() + ', \r\n')
 
-if __name__ == "__main__":
+def test_baud():
+    for test_baud in reversed(serial_speeds.keys()):
+        ser.baudrate = test_baud
+        ser.open()
+        print('Testing serial port at', test_baud, 'baud.')
+        if command_mode():
+            print('Test passed at', test_baud, 'baud.')
+            return(test_baud)   # return the baud value and leave serial port open
+        print('Test failed at', test_baud, 'baud.')
+        ser.close()
+    print('Could not determine baud rate!  Exiting.')
+    exit(100)
+
+def get_response():
+    """Gets a response from the serial port."""
+    sleep_time_after_buffer_read = 2
+    inBuffer = ser.inWaiting()
+    print("Characters in receive buffer before reading:", str(inBuffer))
+
+    while inBuffer > 0:
+        print("Reading serial port buffer.")
+        # response = response + ser.readline(inBuffer)
+        response = ser.readline(inBuffer)
+        print("Response:", str(response))
+        time.sleep(sleep_time_after_buffer_read)
+        inBuffer = ser.inWaiting()
+        print("Characters in receive buffer after reading and waiting %d seconds:" % sleep_time_after_buffer_read, str(ser.inWaiting()))
+    print("No more characters in serial port buffer.")
+    return response
+
+def command_mode():
+    '''Enters command mode'''
+    ser.flushOutput()
+    ser.flushInput()
+    time.sleep(1)           # give the flush a second
+
+    exit_AT_mode()
+
+    command = b'ATI\r\n'     # test to see if we are stuck in AT command mode.  If so, we see a response from this.
+    print('Sent command:', command.decode())
+    time.sleep(2)           # minimum 1 second wait needed before +++
+    command = b'+++'         # +++ enters AT command mode
+    ser.write(command)
+    print('Sent command:', command.decode())
+    time.sleep(5)           # minimum 1 second wait after +++
+    response = get_response()
+
+def send_command(command):
+    '''Enters command mode'''
+    ser.flushOutput()
+    ser.flushInput()
+    time.sleep(1)           # give the flush a second
+    ser.write(command)
+    print('Sent command: (newline and carriage return)', command.decode())
+    time.sleep(1)
+    response = get_response()
+
+def exit_AT_mode():
+    ser.flushOutput()
+    ser.flushInput()
+    time.sleep(1)           # give the flush a second
+    command = b'\r\n'        # the ATO command must start on a newline
+    ser.write(command)
+    print('Sent command: (newline and carriage return)', command.decode())
+    time.sleep(0.5)
+    command = b'ATO\r\n'     # exit AT command mode if we are in it
+    ser.write(command)
+    print('Sent command:', command.decode())
+    time.sleep(1)
+    response = get_response()
+
+if __name__ == '__main__':
     ser = serial.Serial(
         port='/dev/ttyS4',
         baudrate=57600,
@@ -20,24 +97,13 @@ if __name__ == "__main__":
     print('Opening serial port...') ## temp
     print(ser)
 
-    ser.write(b'+++\r') ## enter AT command mode
-    time.sleep(1)
-    print_line()
+    # test_baud()
+    command_mode()
 
-    ser.write(b'AT\r')
-    time.sleep(1)
-    print_line()
+    command = b'ATI\r\n'
+    send_command(command)
 
-    commands = [b'ATI\r', b'ATI2\r', b'ATI3\r', b'ATI4\r', b'ATI6\r',b'ATI7\r']
-
-    for i in commands:
-        print(i.decode())
-        ser.write(i)
-        time.sleep(1)
-
-    ser.write(b'ATO\r') ## exit AT command mode
-    time.sleep(1)
-    print_line()
+    exit_AT_mode()
 
     ser.close()
     print('Closing serial port...') ## temp
