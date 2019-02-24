@@ -2,14 +2,6 @@
 
 import serial, time, re
 
-######
-## constants
-######
-serial_speeds = {2400: 2, 4800: 4, 9600: 9, 19200: 19, 38400: 38, 57600: 57, 115200: 115}
-air_speeds = (4, 8, 16, 24, 32, 64, 96, 128, 192, 250)
-txpowers = range(1,31)
-
-
 def print_line():
     read_data = ser.readline()
     print(read_data.decode() + ', \r\n')
@@ -26,6 +18,40 @@ def test_baud():
         ser.close()
     print('Could not determine baud rate!  Exiting.')
     exit(100)
+
+def enter_AT_mode():
+    flush_ser()
+    exit_AT_mode()
+
+    command = b'\r\n'        # the ATO command must start on a newline
+    ser.write(command)
+    vprint("Sent command: (\r\n)", command)
+
+    command = b'ATI\r\n'     # test to see if we are stuck in AT command mode.  If so, we see a response from this.
+    ser.write(command)
+    print('Sent command:', command.decode())
+    time.sleep(2)           # minimum 1 second wait needed before +++
+
+    command = b'+++'         # +++ enters AT command mode
+    ser.write(command)
+    print('Sent command:', command.decode())
+    time.sleep(3)           # minimum 1 second wait after +++
+
+    print(get_response())
+
+def flush_ser():
+    ser.flushOutput()
+    ser.flushInput()
+    time.sleep(1)           # give the flush a second
+
+def send_command(command):
+    flush_ser()
+
+    ser.write(command)
+    print('Sent command: ', command.decode())
+    time.sleep(1)
+
+    response = get_response()
 
 def get_response():
     """Gets a response from the serial port."""
@@ -44,37 +70,9 @@ def get_response():
     print("No more characters in serial port buffer.")
     return response
 
-def command_mode():
-    '''Enters command mode'''
-    ser.flushOutput()
-    ser.flushInput()
-    time.sleep(1)           # give the flush a second
-
-    exit_AT_mode()
-
-    command = b'ATI\r\n'     # test to see if we are stuck in AT command mode.  If so, we see a response from this.
-    print('Sent command:', command.decode())
-    time.sleep(2)           # minimum 1 second wait needed before +++
-    command = b'+++'         # +++ enters AT command mode
-    ser.write(command)
-    print('Sent command:', command.decode())
-    time.sleep(5)           # minimum 1 second wait after +++
-    response = get_response()
-
-def send_command(command):
-    '''Enters command mode'''
-    ser.flushOutput()
-    ser.flushInput()
-    time.sleep(1)           # give the flush a second
-    ser.write(command)
-    print('Sent command: (newline and carriage return)', command.decode())
-    time.sleep(1)
-    response = get_response()
-
 def exit_AT_mode():
-    ser.flushOutput()
-    ser.flushInput()
-    time.sleep(1)           # give the flush a second
+    flush_ser()
+
     command = b'\r\n'        # the ATO command must start on a newline
     ser.write(command)
     print('Sent command: (newline and carriage return)', command.decode())
@@ -83,7 +81,8 @@ def exit_AT_mode():
     ser.write(command)
     print('Sent command:', command.decode())
     time.sleep(1)
-    response = get_response()
+
+    print(get_response())
 
 if __name__ == '__main__':
     ser = serial.Serial(
@@ -98,10 +97,17 @@ if __name__ == '__main__':
     print(ser)
 
     # test_baud()
-    command_mode()
+    enter_AT_mode()
 
     command = b'ATI\r\n'
-    send_command(command)
+    print(send_command(command))
+
+    cmd = 1
+    while (cmd == 1):
+        command = raw_input('Enter AT command: ')
+        print(send_command(command))
+
+        cmd = input('Exit command mode? \r\n\t(integers only, 1 to stay, others to exit)')
 
     exit_AT_mode()
 
