@@ -5,10 +5,16 @@ SoftwareSerial mySerial(3, 2);
 Adafruit_GPS myGPS(&mySerial);
 boolean sensor_debug = false;
 
+typedef struct { //initialize structure
+      float latitude;
+      float longitude; // velocity to be implemented later (a_1 - a_0) / time_inbetween_readings
+  } state;
+
 void setup() {
   
   Serial.begin(9600); //Start serial for output
   myGPS.begin(9600); //Get sensor online
+  
 
 }
 
