@@ -25,7 +25,7 @@ def enter_AT_mode():
 
     command = b'\r\n'        # the ATO command must start on a newline
     ser.write(command)
-    vprint("Sent command: (\r\n)", command)
+    print("Sent command: (\r\n)", command)
 
     command = b'ATI\r\n'     # test to see if we are stuck in AT command mode.  If so, we see a response from this.
     ser.write(command)
@@ -58,7 +58,7 @@ def get_response():
     sleep_time_after_buffer_read = 2
     inBuffer = ser.inWaiting()
     print("Characters in receive buffer before reading:", str(inBuffer))
-
+    response = b''
     while inBuffer > 0:
         print("Reading serial port buffer.")
         # response = response + ser.readline(inBuffer)
@@ -66,7 +66,7 @@ def get_response():
         print("Response:", str(response))
         time.sleep(sleep_time_after_buffer_read)
         inBuffer = ser.inWaiting()
-        print("Characters in receive buffer after reading and waiting %d seconds:" % sleep_time_after_buffer_read, str(ser.inWaiting()))
+        #print("Characters in receive buffer after reading and waiting %d seconds:" % sleep_time_after_buffer_read, str(ser.inWaiting()))
     print("No more characters in serial port buffer.")
     return response
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         timeout = 5
     )
     print('Opening serial port...') ## temp
-    print(ser)
+    #print(ser)
 
     # test_baud()
     enter_AT_mode()
@@ -102,12 +102,16 @@ if __name__ == '__main__':
     command = b'ATI\r\n'
     print(send_command(command))
 
-    cmd = 1
-    while (cmd == 1):
-        command = raw_input('Enter AT command: ')
+    cmd = '1'
+    while (cmd == '1'):
+        command = input('Enter AT command: ')
+        command = command.encode()
+        print(send_command(b'\r\n'))
+        time.sleep(1)
         print(send_command(command))
 
         cmd = input('Exit command mode? \r\n\t(integers only, 1 to stay, others to exit)')
+        cmd = cmd.rstrip()
 
     exit_AT_mode()
 
