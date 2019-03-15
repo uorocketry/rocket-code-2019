@@ -1,5 +1,5 @@
 #include <SoftwareSerial.h>
-SoftwareSerial mySerial(10, 11);
+SoftwareSerial mySerial(1, 2); // Arduino Nano Rx and TX pins
 
 void setup() {
   Serial.begin(9600);
