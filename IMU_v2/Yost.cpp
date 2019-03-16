@@ -108,8 +108,9 @@ float Yost::getTemperature() {
 float *Yost::read_orientation_euler() {
 
   static float angle_euler[3];
-    
-  // 1 btye = 8 bits 
+  byte buffer[12];
+
+  // 1 btye = 8 bits
   int16_t t;
   _i2c->beginTransmission(YOST_ADDRESS); // transmit to register (0x77)
   _i2c->write(YOST_I2C_COMMAND); // prepares imu to write (0xEE)
@@ -118,40 +119,48 @@ float *Yost::read_orientation_euler() {
   _i2c->write(YOST_I2C_COMMAND); // (0xEE)
   _i2c->write(YOST_READ_COMMAND);
   _i2c->endTransmission(false); // stops transmitting then transmits the bytes that were queued by write()
-  
+
   //Wire.requestFrom(address, quantity)
-  _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)4);// read 1st 4 bytes to get float
-    for (int i = 0; i<4; i++){
-      euler.eulerArray[3-i] = _i2c->read(); // receive DATA 
+  _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)12); // dump 12 bytes of data onto buffer
+    for (int i = 0; i<12; i++){
+      buffer[11-i] = _i2c->read(); // receive DATA
     }
 
-  angle_euler[0] = euler.eulerFloat;  
+  for(int i = 0; i < 4; i++){
+    euler.eulerArray[3-i] = buffer[3-i]; // put 1st 4 byte segment onto eulerArray
+  }
 
-   _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)4);// read 2nd 4 bytes to get float (0x7B is 4 more than 0x77)
-    for (int i = 0; i<4; i++){
-      euler.eulerArray[3-i] = _i2c->read(); // receive DATA 
-    }
+  angle_euler[0] = euler.eulerFloat; // turn byte array to float (union)
 
-  angle_euler[1] = euler.eulerFloat;   
+  for(int i = 0; i < 4; i++){
+    euler.eulerArray[3-i] = buffer[7-i]; // put 2nd 4 byte segment onto eulerArray
+  }
 
-    _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)4);// read 3rd 4 bytes to get float (0x7F is 8 more than 0x77)
-    for (int i = 0; i<4; i++){
-      euler.eulerArray[3-i] = _i2c->read(); // receive DATA 
-    }
-    
-  angle_euler[2] = euler.eulerFloat;   
-  
+  angle_euler[1] = euler.eulerFloat; // turn byte array to float (union)
+
+  for(int i = 0; i < 4; i++){
+    euler.eulerArray[3-i] = buffer[11-i]; // put 3rd 4 byte segment onto eulerArray
+  }
+
+  angle_euler[2] = euler.eulerFloat; // turn byte array to float (union)
+
+
   //TODO: check out what this does
   if (t & 0x800) {
     t |= 0xF000;
   }
 
-  return angle_euler; 
+  return angle_euler;
 }
 
 
 float *Yost::read_accel_filtered() {
-  // 1 btye = 8 bits 
+  // 1 btye = 8 bits
+
+  byte buffer[12];
+
+  static float xyz_accel[3];
+  
   int16_t t;
   _i2c->beginTransmission(YOST_ADDRESS); // transmit to register (0x77)
   _i2c->write(YOST_I2C_COMMAND); // prepares imu to write (0xEE)
@@ -161,33 +170,35 @@ float *Yost::read_accel_filtered() {
   _i2c->write(YOST_READ_COMMAND);
   _i2c->endTransmission(false); // stops transmitting then transmits the bytes that were queued by write()
 
-  _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)4);// read 1st 4 bytes to get float
-    for (int i = 0; i<4; i++){
-      accel.accelArray[3-i] = _i2c->read(); // receive DATA
+  _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)12); // dump 12 bytes of data onto buffer
+    for (int i = 0; i<12; i++){
+      buffer[11-i] = _i2c->read(); // receive DATA
     }
 
-  xyz_accel[0] = accel.accelFloat;  
+  for(int i = 0; i < 4; i++){
+    accel.accelArray[3-i] = buffer[3-i]; // put 1st 4 byte segment onto accelArray
+  }
 
-   _i2c->requestFrom((uint8_t)0x7B, (uint8_t)4);// read 2nd 4 bytes to get float (0x7B is 4 more than 0x77)
-    for (int i = 0; i<4; i++){
-      accel.accelArray[3-i] = _i2c->read(); // receive DATA
-    }
+  xyz_accel[0] = accel.accelFloat; // turn byte array to float (union)
 
-  xyz_accel[1] = accel.accelFloat;    
+  for(int i = 0; i < 4; i++){
+    accel.accelArray[3-i] = buffer[7-i]; // put 1st 4 byte segment onto accelArray
+  }
 
-    _i2c->requestFrom((uint8_t)0x7F, (uint8_t)4);// read 3rd 4 bytes to get float (0x7F is 8 more than 0x77)
-    for (int i = 0; i<4; i++){
-      accel.accelArray[3-i] = _i2c->read(); // receive DATA
-    }
-    
-  xyz_accel[2] = accel.accelFloat;    
-  
+  xyz_accel[1] = accel.accelFloat; // turn byte array to float (union)
+
+  for(int i = 0; i < 4; i++){
+    accel.accelArray[3-i] = buffer[11-i]; // put 1st 4 byte segment onto accelArray
+  }
+
+  xyz_accel[2] = accel.accelFloat; // turn byte array to float (union)
+
   //TODO: check out what this does
   if (t & 0x800) {
     t |= 0xF000;
   }
 
-  return xyz_accel;    // Return memory address of array 
+  return xyz_accel;    // Return memory address of array
   }
 
 
@@ -201,7 +212,7 @@ void Yost::set_axis_directions_with_tare() {
   _i2c->write(YOST_I2C_COMMAND); // (0xEE)
   _i2c->write(YOST_READ_COMMAND);
   _i2c->endTransmission(false); // stops transmitting then transmits the bytes that were queued by write()
-  
+
 
   //TODO: check out what this does
   if (t & 0x800) {
@@ -220,7 +231,7 @@ void Yost::set_axis_directions_with_tare() {
   _i2c->write(YOST_I2C_COMMAND); // (0xEE)
   _i2c->write(YOST_READ_COMMAND);
   _i2c->endTransmission(false); // stops transmitting then transmits the bytes that were queued by write()
-  
+
 
   //TODO: check out what this does
   if (t & 0x800) {
