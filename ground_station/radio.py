@@ -104,11 +104,15 @@ if __name__ == '__main__':
 
     cmd = '1'
     while (cmd == '1'):
-        command = input('Enter AT command: ')
+        command = input('Enter AT/RT command: ')
+        ## ie. ATSn? , register number n= 0 to 18
+        ## RTI[,x], RTI3[,x],
         command = command.encode()
-        print(send_command(b'\r\n'))
-        time.sleep(1)
+
         print(send_command(command))
+        time.sleep(0.5)
+        print(send_command(b'\r\n'))
+        time.sleep(0.4)
 
         cmd = input('Exit command mode? \r\n\t(integers only, 1 to stay, others to exit)')
         cmd = cmd.rstrip()
