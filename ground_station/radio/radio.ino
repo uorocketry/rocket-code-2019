@@ -1,23 +1,21 @@
-#include <SoftwareSerial.h>
-SoftwareSerial mySerial(1, 2); // Arduino Nano Rx and TX pins
+
+// Serial mySerial(0, 1);
+int ctr;
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-
-  Serial.println("Hello world!");
-
-  mySerial.begin(57600);
-  mySerial.println("Hello, world?");
+  Serial.begin(57600);
+  Serial.println("Hello, world!");
+  delay(500);
+  Serial.println("- From Radio.");
+  ctr = 0;
 }
 
 void loop() {
-  if (mySerial.available()) {
-    Serial.print(mySerial.read());
-  }
-  if (Serial.available()) {
-    mySerial.write("Hi");
+  if (Serial.available() && ctr < 10) {
+    Serial.write("Hi ");
+    Serial.write(ctr);
+    Serial.write("\r\n");
+    delay(1000);
+    ctr++;
   }
 }

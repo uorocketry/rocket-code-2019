@@ -109,15 +109,25 @@ if __name__ == '__main__':
         ## RTI[,x], RTI3[,x],
         command = command.encode()
 
-        print(send_command(command))
-        time.sleep(0.5)
-        print(send_command(b'\r\n'))
-        time.sleep(0.4)
+        rt = send_command(command)
+        print(rt)
+        time.sleep(0.2)
+        rt = send_command(b'\r\n')
+        print(rt)
+        time.sleep(0.2)
 
         cmd = input('Exit command mode? \r\n\t(integers only, 1 to stay, others to exit)')
         cmd = cmd.rstrip()
 
     exit_AT_mode()
+
+    ## TODO: Temp
+    while True:
+        rd = ser.readline()
+        print(rd.decode())
+        time.sleep(0.1)
+        if rt.rstrip() == b'':
+            break
 
     ser.close()
     print('Closing serial port...') ## temp
