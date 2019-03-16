@@ -160,7 +160,7 @@ float *Yost::read_accel_filtered() {
   byte buffer[12];
 
   static float xyz_accel[3];
-
+  
   int16_t t;
   _i2c->beginTransmission(YOST_ADDRESS); // transmit to register (0x77)
   _i2c->write(YOST_I2C_COMMAND); // prepares imu to write (0xEE)

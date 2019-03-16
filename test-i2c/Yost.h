@@ -54,13 +54,13 @@ class Yost
     float *read_accel_filtered();
     void set_axis_directions_with_tare();
     void software_reset();
-
+    
     byte  set_axis();
-
-
+    
+    
   private:
    TwoWire *_i2c;
-
+  
    union temp_tag {
      byte tempArray[4]; // {Return Len: 4 bytes} {Return Data Details: float}
      float tempFloat;
