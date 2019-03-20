@@ -4,9 +4,9 @@ int ctr;
 
 void setup() {
   Serial.begin(57600);
-  Serial.println("Hello, world!");
+  Serial.write("Hello, world!");
   delay(500);
-  Serial.println("- From Radio.");
+  Serial.write("\t- From Tx");
   ctr = 0;
 }
 
