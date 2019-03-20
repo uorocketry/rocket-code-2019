@@ -45,23 +45,27 @@ void loop() {
   Serial.print("Altitude(m):");
   Serial.print(init_state.altitude, 2);
   Serial.println();
-  store_state(&init_state);
+  store_state(init_state);
 }
 
 void update_state(state *state_ptr){ // point to memory address (get contents of mem address)
   state_ptr->altitude = myPressure.readAltitude(); // the altitude field in the struct that state_ptr points to is updated to current Altitude
 }
 
-void store_state(state *state_ptr) {
+void store_state(state init_state) {
   //digitalWrite(sdPower,HIGH);
   sd.begin(chipSelect, SPI_HALF_SPEED);
   myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
 
-  myFile.println(String(state_ptr->altitude));
+  myFile.println("Altitude(m): "+serialize_state(init_state));
 
   //delay(1000);
   myFile.close();
 
   //digitalWrite(sdPower,LOW);
   //delay(100);
+}
+
+String serialize_state(state init_state) {
+  return String(init_state.altitude);
 }
