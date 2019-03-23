@@ -90,9 +90,7 @@ void update_state(state *); // pointer to struct
 void loop() {
   state init_state;
   update_state(&init_state); // function call pass memory address of init_state
-  DISPLAY_OUTPUT();
-
-  
+  DISPLAY_OUTPUT(&init_state);
   
 }
 
@@ -119,44 +117,44 @@ void update_state(state *state_ptr){ // point to memory address (get contents of
 
 }
 
-void DISPLAY_OUTPUT(){
-  state init_state;
+void DISPLAY_OUTPUT(state *state_ptr){
   if(!sensor_debug) {
-    Serial.print("Altitude(m):");
-  Serial.print(init_state.altitude, 2);
+  Serial.print("Altitude(m):");
+  Serial.print(state_ptr->altitude, 2);
   Serial.println();
   Serial.print("Latitude(Degrees):");
-  Serial.print(init_state.latitude, 2);
+  Serial.print(state_ptr->latitude, 2);
+  Serial.println();
   Serial.print("Longitude(Degrees):");
-  Serial.print(init_state.longitude, 2); //2?
+  Serial.print(state_ptr->longitude, 2); //2?
   Serial.println();
  
 
   Serial.print("Pitch: ");
-  Serial.print(init_state.rocket.e_orient.pitch); 
+  Serial.print(state_ptr->rocket.e_orient.pitch); 
   Serial.println();
 
   Serial.print("Yaw: ");
-  Serial.print(init_state.rocket.e_orient.yaw); 
+  Serial.print(state_ptr->rocket.e_orient.yaw); 
   Serial.println();
 
   Serial.print("Roll: ");
-  Serial.print(init_state.rocket.e_orient.roll); 
+  Serial.print(state_ptr->rocket.e_orient.roll); 
   Serial.println();
 
   Serial.print(""); // \n
   Serial.println();
 
   Serial.print("x: ");
-  Serial.print(init_state.rocket.r_accel.x);
+  Serial.print(state_ptr->rocket.r_accel.x);
   Serial.println();
 
   Serial.print("y: ");
-  Serial.print(init_state.rocket.r_accel.y); 
+  Serial.print(state_ptr->rocket.r_accel.y); 
   Serial.println();
 
   Serial.print("z: ");
-  Serial.print(init_state.rocket.r_accel.z); 
+  Serial.print(state_ptr->rocket.r_accel.z); 
   Serial.println();
 
   Serial.print(""); // \n
