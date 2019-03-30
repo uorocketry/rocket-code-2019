@@ -90,7 +90,7 @@ void update_state(state *); // pointer to struct
 void loop() {
   state init_state;
   update_state(&init_state); // function call pass memory address of init_state
-  DISPLAY_OUTPUT(&init_state);
+  DISPLAY_OUTPUT(&init_state); // print to serial port 
   
 }
 
