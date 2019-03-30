@@ -39,6 +39,7 @@ enum {
   YOST_REGISTER_ACCEL          =           (0x27), // Read accelerometer {Return Len: 12 bytes} {Return Data Details: Vector(float x3)}
   YOST_REGISTER_AXIS_W_TARE    =           (0x60), // Tare with current orientation {Return Len: 0 bytes} {Data Details: N/A}
   YOST_REGISTER_SW_RESET       =           (0xE2), // Software reset. Resets the sensor {Return Len: N/A} {Data Details: N/A}
+  YOST_REGISTER_R_MATRIX       =           (0x02), // Rotation matrix. {Return Len: 36 bytes} {Return Data Format: Rotation Matrix(float x9)}
   YOST_REGISTER_SET_AXIS       =           (0x74) // Set axis directions {Return Len: 1 byte} {Data Details: Axis direction byte}
 };
 
@@ -54,6 +55,7 @@ class Yost
     float *read_accel_filtered();
     void set_axis_directions_with_tare();
     void software_reset();
+    float *rotation_matrix();
     
     byte  set_axis();
     
@@ -78,6 +80,13 @@ class Yost
     } accel;
 
    float xyz_accel[3]; // store each float (every 4 bytes) into an index of the xyz_euler array
+
+   union rot_matrix_tag {
+     byte rotArray[4]; // Rotation matrix. {Return Len: 36 bytes} {Return Data Format: Rotation Matrix(float x9)}
+     float rotFloat;
+    } rotation;
+
+   float rotation_accel[9]; // store each float (every 4 bytes) into an index of the xyz_euler array
 
 };
 

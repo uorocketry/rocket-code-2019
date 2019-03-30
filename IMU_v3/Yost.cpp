@@ -242,3 +242,42 @@ void Yost::set_axis_directions_with_tare() {
  }
 
 }
+
+float *Yost::rotation_matrix() {
+  int16_t t;
+
+  // 1 btye = 8 bits
+
+  byte buffer[36];
+  static float rot_matrix[9];
+
+  _i2c->beginTransmission(YOST_ADDRESS); // transmit to register (0x77)
+  _i2c->write(YOST_I2C_COMMAND); // prepares imu to write (0xEE)
+  _i2c->write(YOST_WRITE_COMMAND); // send write command to imu (0x42)
+  _i2c->write(YOST_REGISTER_R_MATRIX); // write Rotation Matrix command to imu (0x02)
+  _i2c->write(YOST_I2C_COMMAND); // (0xEE)
+  _i2c->write(YOST_READ_COMMAND);
+  _i2c->endTransmission(false); // stops transmitting then transmits the bytes that were queued by write()
+
+  _i2c->requestFrom((uint8_t)YOST_ADDRESS, (uint8_t)36); // dump 36 bytes of data onto buffer
+    for (int i = 0; i<36; i++){
+      buffer[35-i] = _i2c->read(); // receive DATA
+    }
+
+  for(int j = 0; j < 9; j++){
+    for(int i = 0; i < 4; i++){
+      rotation.rotArray[3-i] = buffer[(3 + 4 * j)-i]; // 4 byte segment onto rotArray
+    }
+    // add each float  
+    rot_matrix[j] = rotation.rotFloat; // turn byte array to float (union)
+  }
+  
+  
+  
+//TODO: check out what this does
+  if (t & 0x800) {
+    t |= 0xF000;
+ }
+ 
+ return rot_matrix;    // Return memory address of first element of array
+  }

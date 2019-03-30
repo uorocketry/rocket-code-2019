@@ -50,8 +50,13 @@ void setup() {
     }accel;
 
     typedef struct{
+    int rot_array[9];
+    }rot;
+
+    typedef struct{
     euler_angles e_orient;
     accel r_accel;
+    rot r_matrix;
     }yost_imu; // user defined data type
 
     yost_imu rocket = {{0,0,0},{0,0,0}}; // place holder vaules until sensor is updated
