@@ -180,7 +180,8 @@ void DISPLAY_OUTPUT(state *state_ptr){
 }
 
 void read_dummy_sensors(state *state_ptr) {
-
+  float *euler_orient = yost.read_orientation_euler();
+  float *accel = yost.read_accel_filtered();
   while(!Serial.available()){
     
   }
@@ -208,14 +209,13 @@ void read_dummy_sensors(state *state_ptr) {
     String eighthValue = data_from_python.substring(seventhCommaIndex+1, eighthCommaIndex);
     String ninthValue = data_from_python.substring(eighthCommaIndex+1, ninthCommaIndex);
     String tenthValue = data_from_python.substring(ninthCommaIndex+1);
-    //////////////////Unfinished, results in segmentation fault.
-    //Should be similair to this when finished
+    
     
     state_ptr->altitude = firstValue.toFloat();
     state_ptr->velocity = secondValue.toFloat();
     state_ptr->latitude = thirdValue.toFloat();
     state_ptr->longitude = fourthValue.toFloat();
-    /*
+    
     state_ptr->rocket.e_orient.pitch = fifthValue.toFloat(); 
     state_ptr->rocket.e_orient.yaw = sixthValue.toFloat();
     state_ptr->rocket.e_orient.roll = seventhValue.toFloat();
@@ -223,19 +223,6 @@ void read_dummy_sensors(state *state_ptr) {
     state_ptr->rocket.r_accel.x = eighthValue.toFloat(); 
     state_ptr->rocket.r_accel.y = ninthValue.toFloat();
     state_ptr->rocket.r_accel.z = tenthValue.toFloat();
-    */
-    float *euler_orient = yost.read_orientation_euler(); // point to memory address of array
-    
-    state_ptr->rocket.e_orient.pitch = *euler_orient; // point (imu_ptr) to e_orient and access the pitch filed
-    state_ptr->rocket.e_orient.yaw = *(euler_orient + 1);
-    state_ptr->rocket.e_orient.roll = *(euler_orient + 2);
-
-    // yost imu library 
-    float *accel = yost.read_accel_filtered(); // point to memory address of array
-    
-    state_ptr->rocket.r_accel.x = *accel; // point (imu_ptr) to r_accel and access the x filed
-    state_ptr->rocket.r_accel.y = *(accel + 1);
-    state_ptr->rocket.r_accel.z = *(accel + 2);
     
     
   }
