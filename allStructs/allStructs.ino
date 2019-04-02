@@ -95,7 +95,7 @@ void loop() {
   }
   else{
     read_dummy_sensors(&init_state);
-    Serial.write(test_dummy_output(init_state));
+    Serial.write(test_dummy_output(&init_state));
   }
    
 }
@@ -210,12 +210,12 @@ void read_dummy_sensors(state *state_ptr) {
     String tenthValue = data_from_python.substring(ninthCommaIndex+1);
     //////////////////Unfinished, results in segmentation fault.
     //Should be similair to this when finished
-    /*
+    
     state_ptr->altitude = firstValue.toFloat();
     state_ptr->velocity = secondValue.toFloat();
     state_ptr->latitude = thirdValue.toFloat();
     state_ptr->longitude = fourthValue.toFloat();
-
+    /*
     state_ptr->rocket.e_orient.pitch = fifthValue.toFloat(); 
     state_ptr->rocket.e_orient.yaw = sixthValue.toFloat();
     state_ptr->rocket.e_orient.roll = seventhValue.toFloat();
@@ -241,41 +241,41 @@ void read_dummy_sensors(state *state_ptr) {
   }
 }
 
-int test_dummy_output(state init_state) {
-  if(init_state.altitude >=0 && init_state.altitude<=1000 && init_state.velocity <= 80 && init_state.velocity>=70) {
+int test_dummy_output(state *init_state) {
+  if(init_state->altitude >=0 && init_state->altitude<=1000 && init_state->velocity <= 80 && init_state->velocity>=70) {
     return 1;
   }
-  else if(init_state.altitude >=0 && init_state.altitude<=1000 && init_state.velocity <= 70 && init_state.velocity>=60) {
+  else if(init_state->altitude >=0 && init_state->altitude<=1000 && init_state->velocity <= 70 && init_state->velocity>=60) {
     return 2;
   }
-  else if(init_state.altitude >=0 && init_state.altitude<=1000 && init_state.velocity <= 60 && init_state.velocity>=50) {
+  else if(init_state->altitude >=0 && init_state->altitude<=1000 && init_state->velocity <= 60 && init_state->velocity>=50) {
     return 3;
   }
-  else if(init_state.altitude >=0 && init_state.altitude<=1000 && init_state.velocity <= 50 && init_state.velocity>=0) {
+  else if(init_state->altitude >=0 && init_state->altitude<=1000 && init_state->velocity <= 50 && init_state->velocity>=0) {
     return 4;
   }
-  else if(init_state.altitude >=1001 && init_state.altitude<=2000 && init_state.velocity <= 80 && init_state.velocity>=70) {
+  else if(init_state->altitude >=1001 && init_state->altitude<=2000 && init_state->velocity <= 80 && init_state->velocity>=70) {
     return 5;
   }
-  else if(init_state.altitude >=1001 && init_state.altitude<=2000 && init_state.velocity <= 70 && init_state.velocity>=60) {
+  else if(init_state->altitude >=1001 && init_state->altitude<=2000 && init_state->velocity <= 70 && init_state->velocity>=60) {
    return 6;
   }
-  else if(init_state.altitude >=1001 && init_state.altitude<=2000 && init_state.velocity <= 60 && init_state.velocity>=50) {
+  else if(init_state->altitude >=1001 && init_state->altitude<=2000 && init_state->velocity <= 60 && init_state->velocity>=50) {
     return 7;
   }
-  else if(init_state.altitude >=1001 && init_state.altitude<=2000 && init_state.velocity <= 50 && init_state.velocity>=00) {
+  else if(init_state->altitude >=1001 && init_state->altitude<=2000 && init_state->velocity <= 50 && init_state->velocity>=00) {
     return 8;
   }
-  else if(init_state.altitude >=2001 && init_state.altitude<=3000 && init_state.velocity <= 80 && init_state.velocity>=70) {
+  else if(init_state->altitude >=2001 && init_state->altitude<=3000 && init_state->velocity <= 80 && init_state->velocity>=70) {
     return 9;
   }
-  else if(init_state.altitude >=2001 && init_state.altitude<=3000 && init_state.velocity <= 70 && init_state.velocity>=60) {
+  else if(init_state->altitude >=2001 && init_state->altitude<=3000 && init_state->velocity <= 70 && init_state->velocity>=60) {
     return 10;
   }
-  else if(init_state.altitude >=2001 && init_state.altitude<=3000 && init_state.velocity <= 60 && init_state.velocity>=50) {
+  else if(init_state->altitude >=2001 && init_state->altitude<=3000 && init_state->velocity <= 60 && init_state->velocity>=50) {
     return 11;
   }
-  else if(init_state.altitude >=2001 && init_state.altitude<=3000 && init_state.velocity <= 50 && init_state.velocity>=0) {
+  else if(init_state->altitude >=2001 && init_state->altitude<=3000 && init_state->velocity <= 50 && init_state->velocity>=0) {
     return 12;
   }
 }
