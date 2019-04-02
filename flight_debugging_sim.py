@@ -23,6 +23,14 @@ def sim_flight(state):
 def repr_to_serial(state):
 	return str(state["alt"])+", "+str(state["vel"])+", "+str(state["lat"])+", "+str(state["lon"])+", "+str(state["pch"])+", "+str(state["yaw"])+", "+str(state["rol"])+", "+str(state["acx"])+", "+str(state["acy"])+", "+str(state["acz"])
 
+def serial_decoder(s):
+	newS = ""
+
+	for c in s:
+		if(c in "0123456789"):
+			newS= newS+c
+	return newS
+
 
 #constant variables
 com = '/dev/ttyS8' #can and should be changed(to COM for ex) for different devices
@@ -62,5 +70,5 @@ while(True):
 
 	message_received = ser.readline()
 	print ("Message from arduino: ")
-	print (message_received)
+	print (serial_decoder(str(message_received)))
 	sim_flight(state)
