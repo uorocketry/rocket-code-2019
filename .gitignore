@@ -41,6 +41,7 @@
 *.su
 *.idb
 *.pdb
+*.csv
 
 # Kernel Module Compile Results
 *.mod*
@@ -50,6 +51,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+.DS_Store
 
 # Log Files
 *.csv
