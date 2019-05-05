@@ -39,7 +39,7 @@ def test_baud():
 
 def enter_AT_mode():
     flush_ser()
-    exit_AT_mode()
+    exit_AT_mode('RT')
 
     command = b'\r\n'        # the ATO command must start on a newline
     ser.write(command)
@@ -158,7 +158,7 @@ if __name__ == '__main__':
             cmd = cmd.rstrip()
         exit_AT_mode('RT')
         time.sleep(0.1)
-        exit_AT_mode()
+        exit_AT_mode('ASDF')
 
     ## TODO: Temp
     else:
