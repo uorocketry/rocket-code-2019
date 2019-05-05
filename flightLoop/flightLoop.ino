@@ -1,31 +1,38 @@
-#include <SparkFunMPL3115A2.h>
+/******************************************************************************
+                              general includes
+*******************************************************************************/
 #include <EEPROM.h>
+#include <Wire.h> //i2c
+
+/******************************************************************************
+                              altimeter includes
+*******************************************************************************/
+#include <SparkFunMPL3115A2.h>
+
+/******************************************************************************
+                              GPS includes
+*******************************************************************************/
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
-SoftwareSerial mySerial(3, 2);
+
+/******************************************************************************
+                              YOST includes
+*******************************************************************************/
 #include "Yost.h"
-#include <Wire.h>
+
+/******************************************************************************
+                              Servo includes
+*******************************************************************************/
 #include <Servo.h>
-Yost yost;
+
+/******************************************************************************
+                              SD card includes
+*******************************************************************************/
 #include <SdFat.h>
-const int chipSelect = 4;
-SdFat sd;
-SdFile myFile;
-char fileName[] = "log.txt";
-int sdPower = LED_BUILTIN;
 
-MPL3115A2 myPressure;
-Adafruit_GPS myGPS(&mySerial);
-const int fromLow = 0;
-const int fromHigh = 10;
-const int toLow = 170;
-const int toHigh = 180;
-int percent;
-Servo myservo;
-int pos = 0;
-String values_log_transmit;
-int counter = 0;
-
+/******************************************************************************
+                              general variables
+*******************************************************************************/
 typedef struct { //initialize struct
   float pitch;
   float yaw;
@@ -51,25 +58,60 @@ typedef struct { //initialize structure
   yost_imu rocket;
 } state;
 
+String values_log_transmit; //string for logging and radio transmission
+int counter = 0; //counter for how many times the loop function runs
+
+state init_state;    //Initialize struct
+
+
+/******************************************************************************
+                              altimeter variables
+*******************************************************************************/
+MPL3115A2 myPressure;
+
+/******************************************************************************
+                              GPS variables
+*******************************************************************************/
+SoftwareSerial mySerial(3, 2);
+Adafruit_GPS myGPS(&mySerial);
+
+/******************************************************************************
+                              YOST variables
+*******************************************************************************/
+Yost yost;
+
+/******************************************************************************
+                              SD card variables
+*******************************************************************************/
+const int chipSelect = 4;
+SdFat sd;
+SdFile myFile;
+char fileName[] = "log.txt";
+
+/******************************************************************************
+                              Servo variables
+*******************************************************************************/
+const int fromLow = 0;
+const int fromHigh = 10;
+const int toLow = 170;
+const int toHigh = 180;
+int percent;
+Servo myservo;
+int pos = 0;
+
 void setup() {
-
-  Wire.begin();       // Join i2c bus
-  myPressure.begin();
-  myGPS.begin(9600);
-  yost.begin();
-  myservo.attach(6);
-  Serial.begin(57600);
-  pinMode(sdPower,OUTPUT);
-
-
-
+  Wire.begin();        // Join i2c bus
+  myPressure.begin();  //Initialize Altimeter
+  myGPS.begin(9600);   //Initialize GPS
+  yost.begin();        //Initialize IMU
+  myservo.attach(6);   //Initialize Air Brake
+  Serial.begin(57600); //Start serial for radio
 }
 
 void loop() {
-  state init_state;
   update_state(&init_state); // function call pass memory address of init_state
   deployBrakes(&init_state);
-  logValues(init_state);
+  logValues(&init_state);
 }
 
 void update_state(state *state_ptr) { // point to memory address (get contents of mem address)
@@ -111,54 +153,40 @@ void deployBrakes(state *state_ptr) {
   }
 }
 
-void logValues(state state_ptr) {
+void logValues(state *state_ptr) {
 
-  Serial.println(counter);
+  Serial.println(counter); //TODO: delete me
   //store_state(state_ptr);
   values_log_transmit = serialize_state(state_ptr);
 
   if (counter % 10 == 0) {
     Serial.print(values_log_transmit);
     Serial.write("\r\n");
-  } else {
-    sd.begin(chipSelect, SPI_HALF_SPEED);
-
-    myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
-    //if (file) {
-      myFile.println(values_log_transmit);
-    //} else {
-    //  Serial.println("Error opening datalog.txt");
-    //}
-    myFile.close();
-
   }
-  counter++;
-
-}
-
-
-
-String serialize_state(state state_ptr) {
-  return String("hi");
-}
-
-void store_state(state state_ptr) {
-  //digitalWrite(sdPower,HIGH);
   sd.begin(chipSelect, SPI_HALF_SPEED);
   myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
-
-  myFile.println("Altitude(m): " + serialize_state(state_ptr));
-
-  //delay(1000);
+  myFile.println(values_log_transmit);
   myFile.close();
 
-  //digitalWrite(sdPower,LOW);
-  //delay(100);
+  counter++;
+}
+
+
+String serialize_state(state *state_ptr) {
+  return "time(s) "+String(millis())+", "+String(state_ptr->altitude)+", "
+  +String(state_ptr->latitude)+", "
+  +String(state_ptr->longitude)+", "
+  +String(state_ptr->rocket.e_orient.pitch)+", "
+  +String(state_ptr->rocket.e_orient.yaw)+", "
+  +String(state_ptr->rocket.e_orient.roll)+", "
+  +String(state_ptr->rocket.r_accel.x)+", "
+  +String(state_ptr->rocket.r_accel.y)+", "
+  +String(state_ptr->rocket.r_accel.z);
+
 }
 
 int lookUpBrakes(state *state_ptr) {
 
-  unsigned long start = micros();//starts timer
   unsigned int first_four_bits; // first four bits of the address
   //switch case sets first four bits of address based off the velocity
   switch (int(state_ptr->velocity)) {
@@ -367,10 +395,6 @@ int lookUpBrakes(state *state_ptr) {
   else {
     percent = b - (b / 16) * 16; // gets last 4 bits
   }
-  unsigned long endTime = micros(); // ends timer
-  unsigned long delta = endTime - start; //gets time elapsed
-
-  //Serial.println(delta); // prints time elapsed
   return percent; // return percent
 
 }
