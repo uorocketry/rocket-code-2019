@@ -33,24 +33,25 @@
 /******************************************************************************
                               general variables
 *******************************************************************************/
-typedef struct { //initialize struct
+boolean sensor_debug = false;
+typedef struct { //Euler angle struct (YOST)
   float pitch;
   float yaw;
   float roll;
 } euler_angles;
 
-typedef struct {
+typedef struct { //Acceleration Struct (YOST)
   float x;
   float y;
   float z;
 } accel;
 
-typedef struct {
+typedef struct { //YOST struct (belongs to State)
   euler_angles e_orient;
   accel r_accel;
-} yost_imu; // user defined data type
+} yost_imu; //
 
-typedef struct { //initialize structure
+typedef struct { //overall state struct
   float altitude;
   float velocity; // velocity to be implemented later (a_1 - a_0) / time_inbetween_readings
   float latitude;
@@ -91,7 +92,7 @@ char fileName[] = "log.txt";
 /******************************************************************************
                               Servo variables
 *******************************************************************************/
-const int fromLow = 0;
+const int fromLow = 0; //these four variables are for the map() function 
 const int fromHigh = 10;
 const int toLow = 170;
 const int toHigh = 180;
@@ -109,7 +110,11 @@ void setup() {
 }
 
 void loop() {
-  update_state(&init_state); // function call pass memory address of init_state
+  if(sensor_debug){
+    read_dummy_sensors(&init_state);
+  } else {
+    update_state(&init_state); // function call pass memory address of init_state
+  }
   deployBrakes(&init_state);
   logValues(&init_state);
 }
@@ -397,4 +402,50 @@ int lookUpBrakes(state *state_ptr) {
   }
   return percent; // return percent
 
+}
+
+void read_dummy_sensors(state *state_ptr) {
+  float *euler_orient;// = yost.read_orientation_euler();
+  float *accel; //= yost.read_accel_filtered();
+  while(!Serial.available()){
+  }
+
+  if(Serial.available()>0) {
+    String data_from_python = Serial.readString();
+    int commaIndex = data_from_python.indexOf(",");
+    int secondCommaIndex = data_from_python.indexOf(",", commaIndex+1);
+    int thirdCommaIndex = data_from_python.indexOf(",", secondCommaIndex+1);
+    int fourthCommaIndex = data_from_python.indexOf(",", thirdCommaIndex+1);
+    int fifthCommaIndex = data_from_python.indexOf(",", fourthCommaIndex+1);
+    int sixthCommaIndex = data_from_python.indexOf(",", fifthCommaIndex+1);
+    int seventhCommaIndex = data_from_python.indexOf(",", sixthCommaIndex+1);
+    int eighthCommaIndex = data_from_python.indexOf(",", seventhCommaIndex+1);
+    int ninthCommaIndex = data_from_python.indexOf(",", eighthCommaIndex+1);
+
+
+    String firstValue = data_from_python.substring(0, commaIndex);
+    String secondValue = data_from_python.substring(commaIndex+1, secondCommaIndex);
+    String thirdValue = data_from_python.substring(secondCommaIndex+1, thirdCommaIndex);
+    String fourthValue = data_from_python.substring(thirdCommaIndex+1, fourthCommaIndex);
+    String fifthValue = data_from_python.substring(fourthCommaIndex+1, fifthCommaIndex);
+    String sixthValue = data_from_python.substring(fifthCommaIndex+1, sixthCommaIndex);
+    String seventhValue = data_from_python.substring(sixthCommaIndex+1, seventhCommaIndex);
+    String eighthValue = data_from_python.substring(seventhCommaIndex+1, eighthCommaIndex);
+    String ninthValue = data_from_python.substring(eighthCommaIndex+1, ninthCommaIndex);
+    String tenthValue = data_from_python.substring(ninthCommaIndex+1);
+
+
+    state_ptr->altitude = firstValue.toFloat();
+    state_ptr->velocity = secondValue.toFloat();
+    state_ptr->latitude = thirdValue.toFloat();
+    state_ptr->longitude = fourthValue.toFloat();
+
+    state_ptr->rocket.e_orient.pitch = fifthValue.toFloat();
+    state_ptr->rocket.e_orient.yaw = sixthValue.toFloat();
+    state_ptr->rocket.e_orient.roll = seventhValue.toFloat();
+
+    state_ptr->rocket.r_accel.x = eighthValue.toFloat();
+    state_ptr->rocket.r_accel.y = ninthValue.toFloat();
+    state_ptr->rocket.r_accel.z = tenthValue.toFloat();
+  }
 }
