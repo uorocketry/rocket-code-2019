@@ -78,6 +78,8 @@ MPL3115A2 myPressure;
 *******************************************************************************/
 SoftwareSerial mySerial(3, 2);
 Adafruit_GPS myGPS(&mySerial);
+#define GPSECHO  true
+boolean usingInterrupt = false;
 
 /******************************************************************************
                               YOST variables
@@ -150,12 +152,27 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   myGPS.read();
   Serial.println(myGPS.latitude);
   Serial.println(myGPS.longitude);
-  if(myGPS.fix){
-    state_ptr->latitude = myGPS.latitude;
-    state_ptr->longitude = myGPS.longitude;
-  } else {
-    state_ptr->latitude = 0.0;
-    state_ptr->longitude = 0.0;
+  if (! usingInterrupt) {
+    // read data from the GPS in the 'main loop'
+
+      char c = GPS.read();
+      // if you want to debug, this is a good time to do it!
+      if (GPSECHO)
+        if (c) Serial.print(c);
+
+          // if a sentence is received, we can check the checksum, parse it...
+      if (GPS.newNMEAreceived()) {
+        // a tricky thing here is if we print the NMEA sentence, or data
+        // we end up not listening and catching other sentences!
+        // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
+        //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
+
+        if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+          return;  // we can fail to parse a sentence in which case we should just wait for another
+      }
+    state_ptr->latitude = GPS.latitude;
+    state_ptr->longitude = GPS.longitude;
+
   }
   /*
   // yost imu library
@@ -484,5 +501,19 @@ void read_dummy_sensors(state *state_ptr) {
     state_ptr->rocket.r_accel.x = eighthValue.toFloat();
     state_ptr->rocket.r_accel.y = ninthValue.toFloat();
     state_ptr->rocket.r_accel.z = tenthValue.toFloat();
+  }
+}
+
+void useInterrupt(boolean v) {
+  if (v) {
+    // Timer0 is already used for millis() - we'll just interrupt somewhere
+    // in the middle and call the "Compare A" function above
+    OCR0A = 0xAF;
+    TIMSK0 |= _BV(OCIE0A);
+    usingInterrupt = true;
+  } else {
+    // do not call the interrupt function COMPA anymore
+    TIMSK0 &= ~_BV(OCIE0A);
+    usingInterrupt = false;
   }
 }
