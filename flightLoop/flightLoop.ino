@@ -56,15 +56,19 @@ typedef struct { //YOST struct (belongs to State)
 typedef struct { //overall state struct
   float altitude;
   float velocity; // velocity to be implemented later (a_1 - a_0) / time_inbetween_readings
-  float latitude;
-  float longitude;
+  double latitude;
+  double longitude;
   yost_imu rocket;
 } state;
 
 String values_log_transmit; //string for logging and radio transmission
 int counter = 0; //counter for how many times the loop function runs
 
+euler_angles init_euler_angles;
+accel init_accel;
+yost_imu init_yost_imu;
 state init_state;    //Initialize struct
+
 
 int time;
 int temp_time;
@@ -109,70 +113,56 @@ void setup() {
   Wire.begin();        // Join i2c bus
   myPressure.begin();  //Initialize Altimeter
   myGPS.begin(9600);   //Initialize GPS
-  //myGPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  //myGPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
-
-
   yost.begin();        //Initialize IMU
   myservo.attach(6);   //Initialize Air Brake
-  Serial.begin(9600); //Start serial for radio
+  Serial.begin(115200); //Start serial for radio
   time = millis();
   temp_time = time;
-  delay(5000);
+  euler_angles init_euler_angles = {0.00, 0.00, 0.00};
+  accel init_accel = {0.00, 0.00, 0.00};
+  yost_imu init_yost_imu = {init_euler_angles, init_accel};
+  state init_state = {0.00, 0.00, 0.00, 0.00, init_yost_imu};
+  delay(2000);
 }
 
 void loop() {
   if(sensor_debug){
     read_dummy_sensors(&init_state);
   } else {
-    time = millis();
-    temp_time = time;
+    //time = millis();
+    //temp_time = time;
     update_state(&init_state); // function call pass memory address of init_state
-    time = millis();
-    Serial.println("it took " + String(time - temp_time) + " to run update_state");
+    //time = millis();
+    //Serial.println("it took " + String(time - temp_time) + " to run update_state");
   }
-  time = millis();
-  temp_time = time;
+  //time = millis();
+  //temp_time = time;
   deployBrakes(&init_state);
-  time = millis();
-  Serial.println("it took " + String(time - temp_time) + " to run deployBrakes");
+  //time = millis();
+  //Serial.println("it took " + String(time - temp_time) + " to run deployBrakes");
 
-  time = millis();
-  temp_time = time;
+  //time = millis();
+  //temp_time = time;
   logValues(&init_state);
-  time = millis();
-  Serial.println("it took " + String(time - temp_time) + " to run logValues");
+  //time = millis();
+  //Serial.println("it took " + String(time - temp_time) + " to run logValues");
 }
 
 void update_state(state *state_ptr) { // point to memory address (get contents of mem address)
-
-  //state_ptr->altitude = myPressure.readAltitude(); // the altitude field in the struct that state_ptr points to is updated to current Altitude
-  //Serial.println(myPressure.readAltitude());
   state_ptr->altitude = myPressure.readAltitude();
-  myGPS.read();
-  //Serial.println(myGPS.latitude);
-  //Serial.println(myGPS.longitude);
   if (! usingInterrupt) {
     // read data from the GPS in the 'main loop'
-
       char c = myGPS.read();
       // if you want to debug, this is a good time to do it!
       if (GPSECHO)
         if (c) Serial.print(c);
-
           // if a sentence is received, we can check the checksum, parse it...
       if (myGPS.newNMEAreceived()) {
-        // a tricky thing here is if we print the NMEA sentence, or data
-        // we end up not listening and catching other sentences!
-        // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
-        //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
-
-        if (!myGPS.parse(myGPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
-          return;  // we can fail to parse a sentence in which case we should just wait for another
+        if (myGPS.parse(myGPS.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
+          state_ptr->latitude = myGPS.latitude;
+          state_ptr->longitude = myGPS.longitude;
+        }
       }
-    state_ptr->latitude = myGPS.latitude;
-    state_ptr->longitude = myGPS.longitude;
-
   }
   /*
   // yost imu library
@@ -213,27 +203,50 @@ void deployBrakes(state *state_ptr) {
 void logValues(state *state_ptr) {
 
   Serial.println(counter); //TODO: delete me
-  values_log_transmit = serialize_state(state_ptr);
-  Serial.println(values_log_transmit);
+  //values_log_transmit = serialize_state(state_ptr);
+  //Serial.println(values_log_transmit);
 
   if (counter % 10 == 0) {
-    Serial.println(values_log_transmit);
+    //Serial.println(values_log_transmit);
+    //serialize_state(state_ptr, true);
+    serialize_state(true);
+
     //Serial.write("\r\n");
   }
   sd.begin(chipSelect, SPI_HALF_SPEED);
   myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
-  myFile.println(values_log_transmit);
+  //myFile.println(values_log_transmit);
+  //serialize_state(state_ptr, false);
+  serialize_state(false);
+
+  //delay(100);
   myFile.close();
 
   counter++;
 }
 
 
-String serialize_state(state *state_ptr) {
-  return("time(s): "+String(millis())+", "
-  +String(state_ptr->altitude)+", "
-  +String(state_ptr->latitude)+", "
-  +String(state_ptr->longitude)+", ");
+//void serialize_state(state *state_ptr, boolean radio) {
+void serialize_state(boolean radio) {
+
+  //return("time(s): "+String(millis())+", "
+  //+String(state_ptr->altitude)+", "
+  //+String(state_ptr->latitude)+", "
+  //+String(state_ptr->longitude)+", ");
+ 
+   if(radio){
+    Serial.print(millis());
+    Serial.print(init_state.altitude);
+    Serial.print(init_state.latitude);
+    Serial.println(init_state.longitude);
+  } else {
+    myFile.print(millis());
+    myFile.print(init_state.altitude);
+    myFile.print(init_state.latitude);
+    myFile.println(init_state.longitude);
+  }
+ 
+  
   /*
   +String(state_ptr->rocket.e_orient.pitch)+", "
   +String(state_ptr->rocket.e_orient.yaw)+", "
