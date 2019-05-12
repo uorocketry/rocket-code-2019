@@ -109,8 +109,8 @@ void setup() {
   Wire.begin();        // Join i2c bus
   myPressure.begin();  //Initialize Altimeter
   myGPS.begin(9600);   //Initialize GPS
-  myGPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  myGPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
+  //myGPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  //myGPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
 
 
   yost.begin();        //Initialize IMU
@@ -150,28 +150,28 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   //Serial.println(myPressure.readAltitude());
   state_ptr->altitude = myPressure.readAltitude();
   myGPS.read();
-  Serial.println(myGPS.latitude);
-  Serial.println(myGPS.longitude);
+  //Serial.println(myGPS.latitude);
+  //Serial.println(myGPS.longitude);
   if (! usingInterrupt) {
     // read data from the GPS in the 'main loop'
 
-      char c = GPS.read();
+      char c = myGPS.read();
       // if you want to debug, this is a good time to do it!
       if (GPSECHO)
         if (c) Serial.print(c);
 
           // if a sentence is received, we can check the checksum, parse it...
-      if (GPS.newNMEAreceived()) {
+      if (myGPS.newNMEAreceived()) {
         // a tricky thing here is if we print the NMEA sentence, or data
         // we end up not listening and catching other sentences!
         // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
         //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
 
-        if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+        if (!myGPS.parse(myGPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
           return;  // we can fail to parse a sentence in which case we should just wait for another
       }
-    state_ptr->latitude = GPS.latitude;
-    state_ptr->longitude = GPS.longitude;
+    state_ptr->latitude = myGPS.latitude;
+    state_ptr->longitude = myGPS.longitude;
 
   }
   /*
