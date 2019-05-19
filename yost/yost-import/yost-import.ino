@@ -1,3 +1,6 @@
+extern "C"{
+  #include "src/sbgECom.h"
+}
 
 
 void setup() {
