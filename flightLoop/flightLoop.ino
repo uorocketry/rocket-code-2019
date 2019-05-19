@@ -81,7 +81,7 @@ MPL3115A2 myPressure;
                               GPS variables
 *******************************************************************************/
 SoftwareSerial mySerial(3, 2);
-Adafruit_GPS myGPS(&mySerial);
+Adafruit_GPS GPS(&mySerial);
 #define GPSECHO  true
 boolean usingInterrupt = false;
 
@@ -112,7 +112,10 @@ int pos = 0;
 void setup() {
   Wire.begin();        // Join i2c bus
   myPressure.begin();  //Initialize Altimeter
-  myGPS.begin(9600);   //Initialize GPS
+  myPressure.setModeAltimeter();
+  myPressure.setOversampleRate(7); // Set Oversample to the recommended 128
+  myPressure.enableEventFlags(); // Enable all three pressure and temp event flags
+  GPS.begin(9600);   //Initialize GPS
   yost.begin();        //Initialize IMU
   myservo.attach(6);   //Initialize Air Brake
   Serial.begin(115200); //Start serial for radio
@@ -152,17 +155,18 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   state_ptr->altitude = myPressure.readAltitude();
   if (! usingInterrupt) {
     // read data from the GPS in the 'main loop'
-      char c = myGPS.read();
+      char c = GPS.read();
       // if you want to debug, this is a good time to do it!
       if (GPSECHO)
         if (c) Serial.print(c);
           // if a sentence is received, we can check the checksum, parse it...
-      if (myGPS.newNMEAreceived()) {
-        if (myGPS.parse(myGPS.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
-          state_ptr->latitude = myGPS.latitude;
-          state_ptr->longitude = myGPS.longitude;
+      if (GPS.newNMEAreceived()) {
+        if (!GPS.parse(GPS.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
+          return;
         }
       }
+      state_ptr->latitude = GPS.latitude;
+      state_ptr->longitude = GPS.longitude;
   }
   /*
   // yost imu library
@@ -233,20 +237,26 @@ void serialize_state(boolean radio) {
   //+String(state_ptr->altitude)+", "
   //+String(state_ptr->latitude)+", "
   //+String(state_ptr->longitude)+", ");
- 
+
    if(radio){
     Serial.print(millis());
+    Serial.print(" ");
     Serial.print(init_state.altitude);
+    Serial.print(" ");
     Serial.print(init_state.latitude);
+    Serial.print(" ");
     Serial.println(init_state.longitude);
   } else {
     myFile.print(millis());
+    myFile.print(" ");
     myFile.print(init_state.altitude);
+    myFile.print(" ");
     myFile.print(init_state.latitude);
+    myFile.print(" ");
     myFile.println(init_state.longitude);
   }
- 
-  
+
+
   /*
   +String(state_ptr->rocket.e_orient.pitch)+", "
   +String(state_ptr->rocket.e_orient.yaw)+", "

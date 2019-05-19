@@ -8,8 +8,8 @@ Adafruit_GPS GPS(&mySerial);
 boolean usingInterrupt = false;
 
   typedef struct { //initialize structure
-      float latitude;
-      float longitude;
+      double latitude;
+      double longitude;
   } state;
 
 state init_state;
@@ -20,8 +20,8 @@ void setup() {
 
 
   typedef struct { //initialize structure
-      float latitude;
-      float longitude;
+      double latitude;
+      double longitude;
   } state;
   state init_state = {0.00, 0.00}; // set log, lat to 0
   delay(1000);
@@ -32,9 +32,9 @@ void loop() {
   update_state(&init_state); // function call pass memory address of init_state
 
   Serial.print("Latitude(Degrees):");
-  Serial.print(init_state.latitude, 2);
+  Serial.print(init_state.latitude, 4);
   Serial.print("Longitude(Degrees):");
-  Serial.print(init_state.longitude, 2); //2?
+  Serial.print(init_state.longitude, 4); //2?
   Serial.println();
 }
 
