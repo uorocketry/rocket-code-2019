@@ -158,7 +158,7 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
       char c = GPS.read();
       // if you want to debug, this is a good time to do it!
       if (GPSECHO)
-        if (c) Serial.print(c);
+        if (c) Serial.print(c);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
           // if a sentence is received, we can check the checksum, parse it...
       if (GPS.newNMEAreceived()) {
         if (!GPS.parse(GPS.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
