@@ -1,5 +1,8 @@
 import serial
 import numpy as np
+import sys
+np.set_printoptions(threshold=sys.maxsize)
+
 
 SBG_ECOM_CLASS_LOG_CMD_0 = 16
 SBG_ECOM_CMD_INFO = 4
@@ -63,8 +66,12 @@ def get_sbg_info(serial):
     text = ""
     received_buffer = np.zeros(SBG_ECOM_MAX_BUFFER_SIZE, dtype='uint8')
     serial.open()
-    sbg_send(serial, SBG_ECOM_CLASS_LOG_CMD_0, SBG_ECOM_CMD_INFO, 0, None)
-    text = serial.readline()
+    serial.flush()
+    serial.reset_input_buffer()
+    serial.reset_output_buffer()
+    sbg_send(serial, SBG_ECOM_CMD_INFO, SBG_ECOM_CLASS_LOG_CMD_0, 0, None)
+    text = np.fromstring(serial.read_until(b"3", size=SBG_ECOM_MAX_BUFFER_SIZE), dtype=np.uint8)
+    import pdb; pdb.set_trace()
     serial.close()
     return(text)
 
@@ -78,9 +85,8 @@ def sbg_send(serial, message_class, message, size, payload=None):
     to_send = np.append(to_send, np.uint16(size))
     if payload:
         to_send = np.append(to_send, payload)
-    to_send = np.append(to_send, sbg_crc_compute(to_send[2:]))
+    to_send = np.append(to_send, sbg_crc_compute(np.uint8(to_send[2:])))
     to_send = np.append(to_send, np.uint8(SBG_ECOM_ETX))
-    #import pdb; pdb.set_trace()
     if len(to_send <= SBG_ECOM_MAX_BUFFER_SIZE):
         serial.write(np.uint8(to_send))
 
