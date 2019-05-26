@@ -124,7 +124,7 @@ void setup() {
   euler_angles init_euler_angles = {0.00, 0.00, 0.00};
   accel init_accel = {0.00, 0.00, 0.00};
   yost_imu init_yost_imu = {init_euler_angles, init_accel};
-  state init_state = {0.00, 0.00, 0.00, 0.00, init_yost_imu};
+  state init_state = {myPressure.readAltitude(), 0.00, GPS.latitude, GPS.longitude, init_yost_imu};
   delay(2000);
 }
 
@@ -158,12 +158,11 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
       char c = GPS.read();
       // if you want to debug, this is a good time to do it!
       if (GPSECHO)
-        if (c) Serial.print(c);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+        if (c) //Serial.print(c);
           // if a sentence is received, we can check the checksum, parse it...
       if (GPS.newNMEAreceived()) {
-        if (!GPS.parse(GPS.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
+        if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
           return;
-        }
       }
       state_ptr->latitude = GPS.latitude;
       state_ptr->longitude = GPS.longitude;
@@ -206,7 +205,7 @@ void deployBrakes(state *state_ptr) {
 
 void logValues(state *state_ptr) {
 
-  Serial.println(counter); //TODO: delete me
+  //Serial.println(counter); //TODO: delete me
   //values_log_transmit = serialize_state(state_ptr);
   //Serial.println(values_log_transmit);
 
