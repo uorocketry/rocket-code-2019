@@ -80,6 +80,7 @@ def get_response():
         print("Reading serial port buffer.")
         # response = response + ser.readline(inBuffer)
         response = ser.readline(inBuffer)
+        import pdb; pdb.set_trace()
         print("Response:", str(response))
         time.sleep(sleep_time_after_buffer_read)
         inBuffer = ser.inWaiting()
@@ -131,42 +132,45 @@ if __name__ == '__main__':
         write2file(gen_rand_bytes())
 
     # test_baud()
-    at_mode = input('Enter AT/RT mode? (1 for yes, else for no): ')
-    if (at_mode == '1'):
-        enter_AT_mode()
 
-        command = b'ATI\r\n'
-        print(send_command(command))
+    enter_AT_mode()
 
-        cmd = '1'
-        while (cmd == '1'):
-            command = input('Enter AT/RT command: ')
-            ## ie. ATSn? , register number n= 0 to 18
-            ## For example: use RTI,1 to get RTI value for node 1 or simply use
-            ## RTI to get the RTI value for the node set in the local NODEDESTINATION.
-            ## RTI[,x], RTI3[,x]
-            command = command.encode()
+    command = b'ATI\r\n'
+    print(send_command(command))
 
-            rt = send_command(command)
-            print(rt)
-            time.sleep(0.2)
-            rt = send_command(b'\r\n')
-            print(rt)
-            time.sleep(0.2)
+    time.sleep(3)
+    cmds = ['ATS4=27', 'ATS4?', 'RTS4=27', 'RTS4?']
+#    cmd = '1'
+    for item in cmds:
+#            command = input('Enter AT/RT command: ')
+        ## ie. ATSn? , register number n= 0 to 18
+        ## For example: use RTI,1 to get RTI value for node 1 or simply use
+        ## RTI to get the RTI value for the node set in the local NODEDESTINATION.
+        ## RTI[,x], RTI3[,x]
+#            command = command.encode()
 
-            cmd = input('Exit command mode? \r\n\t(integers only, 1 to stay, others to exit)')
-            cmd = cmd.rstrip()
-        exit_AT_mode('RT')
-        time.sleep(0.1)
-        exit_AT_mode('ASDF')
+#            rt = send_command(command)
+        rt = send_command(item.encode())
+        print(rt)
+        time.sleep(0.2)
+        rt = send_command(b'\r\n')
+        print(rt)
+        time.sleep(0.2)
 
-    ## TODO: Temp
-    else:
-        read_en = True;
-        while read_en:
+#            cmd = input('Exit command mode? \r\n\t(integers only, 1 to stay, others to exit)')
+#            cmd = cmd.rstrip()
+
+    exit_AT_mode('RT')
+    time.sleep(0.1)
+    exit_AT_mode('AT')
+
+    read_en = True;
+    while True:
+        try:
             rd = ser.readline()
-            rd = rd.decode()
-            rd = rd.zfill(total_len)
+            import pdb; pdb.set_trace()
+            #rd = rd.decode()
+    #        rd = rd.zfill(total_len)
 
             write2file(rd)
             print(rd)
@@ -175,6 +179,8 @@ if __name__ == '__main__':
             if rd.rstrip() == b'':
                 read_en = False
                 time.sleep(0.5)
+        except Exception as e:
+            print('Empty string')
 
     ser.close()
     f.close()
