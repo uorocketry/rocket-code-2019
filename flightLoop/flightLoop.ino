@@ -167,7 +167,7 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
       state_ptr->latitude = GPS.latitude;
       state_ptr->longitude = GPS.longitude;
   }
-  /*
+
   // yost imu library
   float *euler_orient = yost.read_orientation_euler(); // point to memory address of array
 
@@ -181,7 +181,7 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   state_ptr->rocket.r_accel.x = *accel; // point (imu_ptr) to r_accel and access the x filed
   state_ptr->rocket.r_accel.y = *(accel + 1);
   state_ptr->rocket.r_accel.z = *(accel + 2);
-  */
+
 
 }
 
@@ -244,7 +244,20 @@ void serialize_state(boolean radio) {
     Serial.print(" ");
     Serial.print(init_state.latitude);
     Serial.print(" ");
-    Serial.println(init_state.longitude);
+    Serial.print(init_state.longitude);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.e_orient.pitch);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.e_orient.yaw);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.e_orient.roll);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.r_accel.x);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.r_accel.y);
+    Serial.print(" ");
+    Serial.println(init_state.rocket.r_accel.z);
+
   } else {
     myFile.print(millis());
     myFile.print(" ");
@@ -252,7 +265,19 @@ void serialize_state(boolean radio) {
     myFile.print(" ");
     myFile.print(init_state.latitude);
     myFile.print(" ");
-    myFile.println(init_state.longitude);
+    myFile.print(init_state.longitude);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.e_orient.pitch);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.e_orient.yaw);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.e_orient.roll);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.r_accel.x);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.r_accel.y);
+    myFile.print(" ");
+    myFile.println(init_state.rocket.r_accel.z);
   }
 
 
