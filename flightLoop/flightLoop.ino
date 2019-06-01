@@ -69,7 +69,7 @@ accel init_accel;
 yost_imu init_yost_imu;
 state init_state;    //Initialize struct
 
-
+double prev_alt=0;
 int time;
 int temp_time;
 /******************************************************************************
@@ -102,12 +102,12 @@ char fileName[] = "log.txt";
                               Servo variables
 *******************************************************************************/
 const int fromLow = 0; //these four variables are for the map() function
-const int fromHigh = 10;
-const int toLow = 170;
-const int toHigh = 180;
+const int fromHigh = 100;
+const int toLow = 553;
+const int toHigh = 2800;
 int percent;
 Servo myservo;
-int pos = 0;
+int pos = map(0, fromLow, fromHigh, toLow, toHigh);
 
 void setup() {
   Wire.begin();        // Join i2c bus
@@ -189,14 +189,14 @@ void deployBrakes(state *state_ptr) {
   int percent = lookUpBrakes(state_ptr);
   percent = map(percent, fromLow, fromHigh, toLow, toHigh);
   if(pos > percent){
-    for (pos = percent; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+    for (pos = percent; pos >= percent; pos -= 1) { // goes from 180 degrees to 0 degrees
       myservo.write(pos);               // tell servo to go to position in variable 'pos'
-      delay(15);                        // waits 15ms for the servo to reach the position
+      delay(3);                        // waits 15ms for the servo to reach the position
     }
   } else {
     for (pos ; pos <= percent; pos += 1) { //goes from 0 degrees to the percentage from the lookup table
       myservo.write(pos);                   // tell servo to go to position in variable 'pos'
-      delay(15);                            // waits 15ms for the servo to reach the position
+      delay(3);                            // waits 15ms for the servo to reach the position
     }
   }
   pos = percent;
@@ -231,12 +231,6 @@ void logValues(state *state_ptr) {
 
 //void serialize_state(state *state_ptr, boolean radio) {
 void serialize_state(boolean radio) {
-
-  //return("time(s): "+String(millis())+", "
-  //+String(state_ptr->altitude)+", "
-  //+String(state_ptr->latitude)+", "
-  //+String(state_ptr->longitude)+", ");
-
    if(radio){
     Serial.print(millis());
     Serial.print(" ");
@@ -279,16 +273,6 @@ void serialize_state(boolean radio) {
     myFile.print(" ");
     myFile.println(init_state.rocket.r_accel.z);
   }
-
-
-  /*
-  +String(state_ptr->rocket.e_orient.pitch)+", "
-  +String(state_ptr->rocket.e_orient.yaw)+", "
-  +String(state_ptr->rocket.e_orient.roll)+", "
-  +String(state_ptr->rocket.r_accel.x)+", "
-  +String(state_ptr->rocket.r_accel.y)+", "
-  +String(state_ptr->rocket.r_accel.z));
-  */
 }
 
 int lookUpBrakes(state *state_ptr) {
@@ -502,6 +486,15 @@ int lookUpBrakes(state *state_ptr) {
     percent = b - (b / 16) * 16; // gets last 4 bits
   }
   return percent; // return percent
+
+}
+
+double getVelocity(float altitude) {
+  double velocity = (altitude - prev_alt)/((time-temp_time)*1000);
+  temp_time = time;
+  time = millis();
+  prev_alt = altitude;
+  return velocity;
 
 }
 
