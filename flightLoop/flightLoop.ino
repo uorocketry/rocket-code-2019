@@ -1,83 +1,172 @@
-#include <SparkFunMPL3115A2.h>
+/******************************************************************************
+                              general includes
+*******************************************************************************/
 #include <EEPROM.h>
+#include <Wire.h> //i2c
+
+/******************************************************************************
+                              altimeter includes
+*******************************************************************************/
+#include <SparkFunMPL3115A2.h>
+
+/******************************************************************************
+                              GPS includes
+*******************************************************************************/
 #include <Adafruit_GPS.h>
+#include <stdio.h>
 #include <SoftwareSerial.h>
-SoftwareSerial mySerial(3, 2);
+
+/******************************************************************************
+                              YOST includes
+*******************************************************************************/
 #include "Yost.h"
-#include <Wire.h>
+
+/******************************************************************************
+                              Servo includes
+*******************************************************************************/
 #include <Servo.h>
-Yost yost;
+
+/******************************************************************************
+                              SD card includes
+*******************************************************************************/
 #include <SdFat.h>
-const int chipSelect = 4;
-SdFat sd;
-SdFile myFile;
-char fileName[] = "log.txt";
-int sdPower = LED_BUILTIN;
 
-MPL3115A2 myPressure;
-Adafruit_GPS myGPS(&mySerial);
-const int fromLow = 0;
-const int fromHigh = 10;
-const int toLow = 170;
-const int toHigh = 180;
-int percent;
-Servo myservo;
-int pos = 0;
-String values_log_transmit;
-int counter = 0;
+/******************************************************************************
+                              general variables
+*******************************************************************************/
+boolean sensor_debug = false;
 
-typedef struct { //initialize struct
+typedef struct { //Euler angle struct (YOST)
   float pitch;
   float yaw;
   float roll;
 } euler_angles;
 
-typedef struct {
+typedef struct { //Acceleration Struct (YOST)
   float x;
   float y;
   float z;
 } accel;
 
-typedef struct {
+typedef struct { //YOST struct (belongs to State)
   euler_angles e_orient;
   accel r_accel;
-} yost_imu; // user defined data type
+} yost_imu; //
 
-typedef struct { //initialize structure
+typedef struct { //overall state struct
   float altitude;
   float velocity; // velocity to be implemented later (a_1 - a_0) / time_inbetween_readings
-  float latitude;
-  float longitude;
+  double latitude;
+  double longitude;
   yost_imu rocket;
 } state;
 
+String values_log_transmit; //string for logging and radio transmission
+int counter = 0; //counter for how many times the loop function runs
+
+euler_angles init_euler_angles;
+accel init_accel;
+yost_imu init_yost_imu;
+state init_state;    //Initialize struct
+
+double prev_alt=0;
+int time;
+int temp_time;
+/******************************************************************************
+                              altimeter variables
+*******************************************************************************/
+MPL3115A2 myPressure;
+
+/******************************************************************************
+                              GPS variables
+*******************************************************************************/
+SoftwareSerial mySerial(3, 2);
+Adafruit_GPS GPS(&mySerial);
+#define GPSECHO  true
+boolean usingInterrupt = false;
+
+/******************************************************************************
+                              YOST variables
+*******************************************************************************/
+Yost yost;
+
+/******************************************************************************
+                              SD card variables
+*******************************************************************************/
+const int chipSelect = 4;
+SdFat sd;
+SdFile myFile;
+char fileName[] = "log.txt";
+
+/******************************************************************************
+                              Servo variables
+*******************************************************************************/
+const int fromLow = 0; //these four variables are for the map() function
+const int fromHigh = 100;
+const int toLow = 553;
+const int toHigh = 2800;
+int percent;
+Servo myservo;
+int pos = map(0, fromLow, fromHigh, toLow, toHigh);
+
 void setup() {
-
-  Wire.begin();       // Join i2c bus
-  myPressure.begin();
-  myGPS.begin(9600);
-  yost.begin();
-  myservo.attach(6);
-  Serial.begin(57600);
-  pinMode(sdPower,OUTPUT);
-
-
-
+  Wire.begin();        // Join i2c bus
+  myPressure.begin();  //Initialize Altimeter
+  myPressure.setModeAltimeter();
+  myPressure.setOversampleRate(7); // Set Oversample to the recommended 128
+  myPressure.enableEventFlags(); // Enable all three pressure and temp event flags
+  GPS.begin(9600);   //Initialize GPS
+  yost.begin();        //Initialize IMU
+  myservo.attach(6);   //Initialize Air Brake
+  Serial.begin(115200); //Start serial for radio
+  time = millis();
+  temp_time = time;
+  euler_angles init_euler_angles = {0.00, 0.00, 0.00};
+  accel init_accel = {0.00, 0.00, 0.00};
+  yost_imu init_yost_imu = {init_euler_angles, init_accel};
+  state init_state = {myPressure.readAltitude(), 0.00, GPS.latitude, GPS.longitude, init_yost_imu};
+  delay(2000);
 }
 
 void loop() {
-  state init_state;
-  update_state(&init_state); // function call pass memory address of init_state
+  if(sensor_debug){
+    read_dummy_sensors(&init_state);
+  } else {
+    //time = millis();
+    //temp_time = time;
+    update_state(&init_state); // function call pass memory address of init_state
+    //time = millis();
+    //Serial.println("it took " + String(time - temp_time) + " to run update_state");
+  }
+  //time = millis();
+  //temp_time = time;
   deployBrakes(&init_state);
-  logValues(init_state);
+  //time = millis();
+  //Serial.println("it took " + String(time - temp_time) + " to run deployBrakes");
+
+  //time = millis();
+  //temp_time = time;
+  logValues(&init_state);
+  //time = millis();
+  //Serial.println("it took " + String(time - temp_time) + " to run logValues");
 }
 
 void update_state(state *state_ptr) { // point to memory address (get contents of mem address)
-
-  state_ptr->altitude = myPressure.readAltitude(); // the altitude field in the struct that state_ptr points to is updated to current Altitude
-  state_ptr->latitude = myGPS.latitude;
-  state_ptr->longitude = myGPS.longitude;
-
+  state_ptr->altitude = myPressure.readAltitude();
+  if (! usingInterrupt) {
+    // read data from the GPS in the 'main loop'
+      char c = GPS.read();
+      // if you want to debug, this is a good time to do it!
+      if (GPSECHO)
+        if (c) //Serial.print(c);
+          // if a sentence is received, we can check the checksum, parse it...
+      if (GPS.newNMEAreceived()) {
+        if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+          return;
+      }
+      state_ptr->latitude = GPS.latitude;
+      state_ptr->longitude = GPS.longitude;
+  }
 
   // yost imu library
   float *euler_orient = yost.read_orientation_euler(); // point to memory address of array
@@ -93,72 +182,101 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   state_ptr->rocket.r_accel.y = *(accel + 1);
   state_ptr->rocket.r_accel.z = *(accel + 2);
 
+
 }
 
 void deployBrakes(state *state_ptr) {
-
   int percent = lookUpBrakes(state_ptr);
   percent = map(percent, fromLow, fromHigh, toLow, toHigh);
-
-  for (pos = 0; pos <= percent; pos += 1) { //goes from 0 degrees to the percentage from the lookup table
-    myservo.write(pos);                   // tell servo to go to position in variable 'pos'
-    delay(15);                            // waits 15ms for the servo to reach the position
+  if(pos > percent){
+    for (pos = percent; pos >= percent; pos -= 1) { // goes from 180 degrees to 0 degrees
+      myservo.write(pos);               // tell servo to go to position in variable 'pos'
+      delay(3);                        // waits 15ms for the servo to reach the position
+    }
+  } else {
+    for (pos ; pos <= percent; pos += 1) { //goes from 0 degrees to the percentage from the lookup table
+      myservo.write(pos);                   // tell servo to go to position in variable 'pos'
+      delay(3);                            // waits 15ms for the servo to reach the position
+    }
   }
+  pos = percent;
 
-  for (pos = percent; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
-    myservo.write(pos);               // tell servo to go to position in variable 'pos'
-    delay(15);                        // waits 15ms for the servo to reach the position
-  }
 }
 
-void logValues(state state_ptr) {
+void logValues(state *state_ptr) {
 
-  Serial.println(counter);
-  //store_state(state_ptr);
-  values_log_transmit = serialize_state(state_ptr);
+  //Serial.println(counter); //TODO: delete me
+  //values_log_transmit = serialize_state(state_ptr);
+  //Serial.println(values_log_transmit);
 
   if (counter % 10 == 0) {
-    Serial.print(values_log_transmit);
-    Serial.write("\r\n");
-  } else {
-    sd.begin(chipSelect, SPI_HALF_SPEED);
+    //Serial.println(values_log_transmit);
+    //serialize_state(state_ptr, true);
+    serialize_state(true);
 
-    myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
-    //if (file) {
-      myFile.println(values_log_transmit);
-    //} else {
-    //  Serial.println("Error opening datalog.txt");
-    //}
-    myFile.close();
-
+    //Serial.write("\r\n");
   }
-  counter++;
-
-}
-
-
-
-String serialize_state(state state_ptr) {
-  return String("hi");
-}
-
-void store_state(state state_ptr) {
-  //digitalWrite(sdPower,HIGH);
   sd.begin(chipSelect, SPI_HALF_SPEED);
   myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
+  //myFile.println(values_log_transmit);
+  //serialize_state(state_ptr, false);
+  serialize_state(false);
 
-  myFile.println("Altitude(m): " + serialize_state(state_ptr));
-
-  //delay(1000);
+  //delay(100);
   myFile.close();
 
-  //digitalWrite(sdPower,LOW);
-  //delay(100);
+  counter++;
+}
+
+
+//void serialize_state(state *state_ptr, boolean radio) {
+void serialize_state(boolean radio) {
+   if(radio){
+    Serial.print(millis());
+    Serial.print(" ");
+    Serial.print(init_state.altitude);
+    Serial.print(" ");
+    Serial.print(init_state.latitude);
+    Serial.print(" ");
+    Serial.print(init_state.longitude);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.e_orient.pitch);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.e_orient.yaw);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.e_orient.roll);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.r_accel.x);
+    Serial.print(" ");
+    Serial.print(init_state.rocket.r_accel.y);
+    Serial.print(" ");
+    Serial.println(init_state.rocket.r_accel.z);
+
+  } else {
+    myFile.print(millis());
+    myFile.print(" ");
+    myFile.print(init_state.altitude);
+    myFile.print(" ");
+    myFile.print(init_state.latitude);
+    myFile.print(" ");
+    myFile.print(init_state.longitude);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.e_orient.pitch);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.e_orient.yaw);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.e_orient.roll);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.r_accel.x);
+    myFile.print(" ");
+    myFile.print(init_state.rocket.r_accel.y);
+    myFile.print(" ");
+    myFile.println(init_state.rocket.r_accel.z);
+  }
 }
 
 int lookUpBrakes(state *state_ptr) {
 
-  unsigned long start = micros();//starts timer
   unsigned int first_four_bits; // first four bits of the address
   //switch case sets first four bits of address based off the velocity
   switch (int(state_ptr->velocity)) {
@@ -367,10 +485,75 @@ int lookUpBrakes(state *state_ptr) {
   else {
     percent = b - (b / 16) * 16; // gets last 4 bits
   }
-  unsigned long endTime = micros(); // ends timer
-  unsigned long delta = endTime - start; //gets time elapsed
-
-  //Serial.println(delta); // prints time elapsed
   return percent; // return percent
 
+}
+
+double getVelocity(float altitude) {
+  double velocity = (altitude - prev_alt)/((time-temp_time)*1000);
+  temp_time = time;
+  time = millis();
+  prev_alt = altitude;
+  return velocity;
+
+}
+
+void read_dummy_sensors(state *state_ptr) {
+  float *euler_orient = yost.read_orientation_euler();
+  float *accel = yost.read_accel_filtered();
+  while(!Serial.available()){
+  }
+
+  if(Serial.available()>0) {
+    String data_from_python = Serial.readString();
+    int commaIndex = data_from_python.indexOf(",");
+    int secondCommaIndex = data_from_python.indexOf(",", commaIndex+1);
+    int thirdCommaIndex = data_from_python.indexOf(",", secondCommaIndex+1);
+    int fourthCommaIndex = data_from_python.indexOf(",", thirdCommaIndex+1);
+    int fifthCommaIndex = data_from_python.indexOf(",", fourthCommaIndex+1);
+    int sixthCommaIndex = data_from_python.indexOf(",", fifthCommaIndex+1);
+    int seventhCommaIndex = data_from_python.indexOf(",", sixthCommaIndex+1);
+    int eighthCommaIndex = data_from_python.indexOf(",", seventhCommaIndex+1);
+    int ninthCommaIndex = data_from_python.indexOf(",", eighthCommaIndex+1);
+
+
+    String firstValue = data_from_python.substring(0, commaIndex);
+    String secondValue = data_from_python.substring(commaIndex+1, secondCommaIndex);
+    String thirdValue = data_from_python.substring(secondCommaIndex+1, thirdCommaIndex);
+    String fourthValue = data_from_python.substring(thirdCommaIndex+1, fourthCommaIndex);
+    String fifthValue = data_from_python.substring(fourthCommaIndex+1, fifthCommaIndex);
+    String sixthValue = data_from_python.substring(fifthCommaIndex+1, sixthCommaIndex);
+    String seventhValue = data_from_python.substring(sixthCommaIndex+1, seventhCommaIndex);
+    String eighthValue = data_from_python.substring(seventhCommaIndex+1, eighthCommaIndex);
+    String ninthValue = data_from_python.substring(eighthCommaIndex+1, ninthCommaIndex);
+    String tenthValue = data_from_python.substring(ninthCommaIndex+1);
+
+
+    state_ptr->altitude = firstValue.toFloat();
+    state_ptr->velocity = secondValue.toFloat();
+    state_ptr->latitude = thirdValue.toFloat();
+    state_ptr->longitude = fourthValue.toFloat();
+
+    state_ptr->rocket.e_orient.pitch = fifthValue.toFloat();
+    state_ptr->rocket.e_orient.yaw = sixthValue.toFloat();
+    state_ptr->rocket.e_orient.roll = seventhValue.toFloat();
+
+    state_ptr->rocket.r_accel.x = eighthValue.toFloat();
+    state_ptr->rocket.r_accel.y = ninthValue.toFloat();
+    state_ptr->rocket.r_accel.z = tenthValue.toFloat();
+  }
+}
+
+void useInterrupt(boolean v) {
+  if (v) {
+    // Timer0 is already used for millis() - we'll just interrupt somewhere
+    // in the middle and call the "Compare A" function above
+    OCR0A = 0xAF;
+    TIMSK0 |= _BV(OCIE0A);
+    usingInterrupt = true;
+  } else {
+    // do not call the interrupt function COMPA anymore
+    TIMSK0 &= ~_BV(OCIE0A);
+    usingInterrupt = false;
+  }
 }
