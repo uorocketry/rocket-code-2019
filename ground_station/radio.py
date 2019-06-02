@@ -19,7 +19,7 @@ def exit_AT_mode(opt):
     ser.write(command)
     print('Sent command: (newline and return)', command.decode())
     time.sleep(SLEEP_INTERVAL/2)
-    if (opt == 'RT'):
+    if (opt == 'AT'):
         command = b'ATO\r\n'     # exit AT command mode if we are in it
     else:
         command = b'RTO\r\n'
@@ -48,7 +48,7 @@ def setup():
 
     command = b'\r\n'        # the ATO command must start on a newline
     ser.write(command)
-    print("Sent command: (\r\n)", command)
+    print("Sent command: ", command)
 
     command = b'ATI\r\n'     # test to see if we are stuck in AT command mode.  If so, we see a response from this.
     ser.write(command)
@@ -64,7 +64,7 @@ def setup():
     print(send_command(command))
 
     time.sleep(3)
-    cmds = ['ATS4=27', 'ATS4?']
+    cmds = ['ATS4=27', 'ATS4?', 'RTS4=27', 'RTS4?']
     for item in cmds:
         rt = send_command(item.encode())
         print(rt)
@@ -72,17 +72,14 @@ def setup():
         rt = send_command(b'\r\n')
         print(rt)
         time.sleep(0.2)
-
-#    exit_AT_mode('RT')
-#    time.sleep(0.1)
+    exit_AT_mode('RT')
+    time.sleep(0.1)
     exit_AT_mode('AT')
 
 
 def loop():
-    inBuffer = ser.inWaiting()
-    response = ser.readline(inBuffer)
 
-#    response = ser.readline()
+    response = ser.readline()
     print(response)
     time.sleep(SLEEP_INTERVAL/2)
 
