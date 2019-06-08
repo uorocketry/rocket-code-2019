@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 
 import serial, time, re
+from datetime import datetime
 
 SLEEP_INTERVAL = 2
+
 
 def send_command(command):
     flush_ser()
@@ -47,19 +49,29 @@ def setup():
     flush_ser()
 
 
-def loop():
+def loop(f):
+    inBuffer = ser.inWaiting()
 
-    response = ser.readline()
-    print(response)
-    time.sleep(SLEEP_INTERVAL/2)
+    while inBuffer > 0 :
+            response = ser.readline()
+            print(response)
+            f.write(str(response) + '\n')
+
+    time.sleep(SLEEP_INTERVAL/4)
 
 
 if __name__ == '__main__':
+    FILE_FORMAT = datetime.now()
+
+    f= open ("data_radio{}.txt".format(FILE_FORMAT), "w+")
+
     print("=== Setup ===")
     setup()
     print("=== Loop ===")
     while True:
         try:
-            loop()
+            loop(f)
         except Exception as e:
             print(e)
+
+    f.close()
