@@ -3,6 +3,7 @@
 *******************************************************************************/
 #include <EEPROM.h>
 #include <Wire.h> //i2c
+#include <math.h>
 
 /******************************************************************************
                               altimeter includes
@@ -69,7 +70,6 @@ accel init_accel;
 yost_imu init_yost_imu;
 state init_state;    //Initialize struct
 
-double prev_alt=0;
 int time;
 int temp_time;
 /******************************************************************************
@@ -89,6 +89,22 @@ boolean usingInterrupt = false;
                               YOST variables
 *******************************************************************************/
 Yost yost;
+float init_velocity;
+int time_a = 0;
+int time_b;
+float sample_a = -1;
+float sample_b;
+float gravity = 9.81;
+float v_0 = 0;
+
+const int numReadings = 5;
+
+float readings[numReadings];      // the readings from the analog input
+int readIndex = 0;              // the index of the current reading
+float total = 0;                  // the running total
+float average = 0;                // the average
+
+float p_0 = 0;
 
 /******************************************************************************
                               SD card variables
@@ -96,7 +112,7 @@ Yost yost;
 const int chipSelect = 4;
 SdFat sd;
 SdFile myFile;
-char fileName[] = "log.txt";
+char fileName[] = "log.csv";
 
 /******************************************************************************
                               Servo variables
@@ -118,13 +134,18 @@ void setup() {
   GPS.begin(9600);   //Initialize GPS
   yost.begin();        //Initialize IMU
   myservo.attach(6);   //Initialize Air Brake
-  Serial.begin(115200); //Start serial for radio
+  Serial.begin(57600); //Start serial for radio
   time = millis();
   temp_time = time;
   euler_angles init_euler_angles = {0.00, 0.00, 0.00};
   accel init_accel = {0.00, 0.00, 0.00};
   yost_imu init_yost_imu = {init_euler_angles, init_accel};
   state init_state = {myPressure.readAltitude(), 0.00, GPS.latitude, GPS.longitude, init_yost_imu};
+  init_velocity = 0;
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = myPressure.readAltitude();
+  }
+  p_0 = myPressure.readAltitude();
   delay(2000);
 }
 
@@ -152,6 +173,7 @@ void loop() {
 }
 
 void update_state(state *state_ptr) { // point to memory address (get contents of mem address)
+  time_b = millis();
   state_ptr->altitude = myPressure.readAltitude();
   if (! usingInterrupt) {
     // read data from the GPS in the 'main loop'
@@ -181,6 +203,45 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   state_ptr->rocket.r_accel.x = *accel; // point (imu_ptr) to r_accel and access the x filed
   state_ptr->rocket.r_accel.y = *(accel + 1);
   state_ptr->rocket.r_accel.z = *(accel + 2);
+
+  //sample_b = sqrt((sq(state_ptr->rocket.r_accel.x) + sq(state_ptr->rocket.r_accel.y) + sq(state_ptr->rocket.r_accel.z)));
+  //sample_b = state_ptr->rocket.r_accel.x - 1;
+  //sample_b = 0;
+  //state_ptr->velocity = v_0 + (gravity*(sample_a)*(time_b-time_a))/1000;
+  //state_ptr->velocity = (gravity*(sample_b)*((time_b - time_a)/1000));
+  //time_a = time_b;
+  //sample_a = sample_b;
+  //v_0 = state_ptr->velocity;
+
+  // subtract the last reading:
+  total = total - readings[readIndex];
+  // read from the sensor:
+  readings[readIndex] = state_ptr->altitude;
+
+  // add the reading to the total:
+  total = total + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex = readIndex + 1;
+
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+
+  // calculate the average:
+  average = total / numReadings;
+  // send it to the computer as ASCII digits
+  state_ptr->velocity = (average-p_0)*1000/(time_b-time_a);
+
+
+  delay(1);        // delay in between reads for stability
+  time_a = time_b;
+  //sample_a = sample_b;
+  p_0 = average;
+
+
+
 
 
 }
@@ -220,7 +281,7 @@ void logValues(state *state_ptr) {
   myFile.open(fileName, O_RDWR | O_CREAT | O_AT_END);
   //myFile.println(values_log_transmit);
   //serialize_state(state_ptr, false);
-  serialize_state(false);
+  serialize_state(true);
 
   //delay(100);
   myFile.close();
@@ -233,45 +294,49 @@ void logValues(state *state_ptr) {
 void serialize_state(boolean radio) {
    if(radio){
     Serial.print(millis());
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.altitude);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.latitude);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.longitude);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.rocket.e_orient.pitch);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.rocket.e_orient.yaw);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.rocket.e_orient.roll);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.rocket.r_accel.x);
-    Serial.print(" ");
+    Serial.print(";");
     Serial.print(init_state.rocket.r_accel.y);
-    Serial.print(" ");
-    Serial.println(init_state.rocket.r_accel.z);
+    Serial.print(";");
+    Serial.print(init_state.rocket.r_accel.z);
+    Serial.print(";");
+    Serial.println(init_state.velocity);
 
   } else {
     myFile.print(millis());
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.altitude);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.latitude);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.longitude);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.rocket.e_orient.pitch);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.rocket.e_orient.yaw);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.rocket.e_orient.roll);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.rocket.r_accel.x);
-    myFile.print(" ");
+    myFile.print(";");
     myFile.print(init_state.rocket.r_accel.y);
-    myFile.print(" ");
-    myFile.println(init_state.rocket.r_accel.z);
+    myFile.print(";");
+    myFile.print(init_state.rocket.r_accel.z);
+    myFile.print(";");
+    myFile.println(init_state.velocity);
   }
 }
 
@@ -489,14 +554,6 @@ int lookUpBrakes(state *state_ptr) {
 
 }
 
-double getVelocity(float altitude) {
-  double velocity = (altitude - prev_alt)/((time-temp_time)*1000);
-  temp_time = time;
-  time = millis();
-  prev_alt = altitude;
-  return velocity;
-
-}
 
 void read_dummy_sensors(state *state_ptr) {
   float *euler_orient = yost.read_orientation_euler();
