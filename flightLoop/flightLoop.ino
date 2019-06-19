@@ -82,8 +82,10 @@ MPL3115A2 myPressure;
 *******************************************************************************/
 SoftwareSerial mySerial(3, 2);
 Adafruit_GPS GPS(&mySerial);
-#define GPSECHO  true
+#define GPSECHO  false
 boolean usingInterrupt = false;
+void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
+
 
 /******************************************************************************
                               YOST variables
@@ -119,11 +121,12 @@ char fileName[] = "log.csv";
 *******************************************************************************/
 const int fromLow = 0; //these four variables are for the map() function
 const int fromHigh = 100;
-const int toLow = 553;
-const int toHigh = 2800;
+const int toLow = 12;
+const int toHigh = 102;
 int percent;
 Servo myservo;
 int pos = map(0, fromLow, fromHigh, toLow, toHigh);
+int value = 0;
 
 void setup() {
   Wire.begin();        // Join i2c bus
@@ -132,6 +135,12 @@ void setup() {
   myPressure.setOversampleRate(7); // Set Oversample to the recommended 128
   myPressure.enableEventFlags(); // Enable all three pressure and temp event flags
   GPS.begin(9600);   //Initialize GPS
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
+  GPS.sendCommand(PGCMD_ANTENNA);
+
+
+
   yost.begin();        //Initialize IMU
   myservo.attach(6);   //Initialize Air Brake
   Serial.begin(57600); //Start serial for radio
@@ -146,6 +155,8 @@ void setup() {
     readings[thisReading] = myPressure.readAltitude();
   }
   p_0 = myPressure.readAltitude();
+  useInterrupt(true);
+
   delay(2000);
 }
 
@@ -175,20 +186,7 @@ void loop() {
 void update_state(state *state_ptr) { // point to memory address (get contents of mem address)
   time_b = millis();
   state_ptr->altitude = myPressure.readAltitude();
-  if (! usingInterrupt) {
-    // read data from the GPS in the 'main loop'
-      char c = GPS.read();
-      // if you want to debug, this is a good time to do it!
-      if (GPSECHO)
-        if (c) //Serial.print(c);
-          // if a sentence is received, we can check the checksum, parse it...
-      if (GPS.newNMEAreceived()) {
-        if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
-          return;
-      }
-      state_ptr->latitude = GPS.latitude;
-      state_ptr->longitude = GPS.longitude;
-  }
+  read_gps(state_ptr);
 
   // yost imu library
   float *euler_orient = yost.read_orientation_euler(); // point to memory address of array
@@ -232,7 +230,7 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   // calculate the average:
   average = total / numReadings;
   // send it to the computer as ASCII digits
-  state_ptr->velocity = (average-p_0)*1000/(time_b-time_a);
+  state_ptr->velocity = abs((average-p_0)*1000/(time_b-time_a));
 
 
   delay(1);        // delay in between reads for stability
@@ -240,27 +238,57 @@ void update_state(state *state_ptr) { // point to memory address (get contents o
   //sample_a = sample_b;
   p_0 = average;
 
+}
+
+void read_gps(state *state_ptr){
+   if (! usingInterrupt) {
+    // read data from the GPS in the 'main loop'
+      char c = GPS.read();
+      // if you want to debug, this is a good time to do it!
+      if (GPSECHO)
+        Serial.print(c);
+          // if a sentence is received, we can check the checksum, parse it...
+   }
+   if (GPS.newNMEAreceived()) {
+      if (!GPS.parse(GPS.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
+        return;
+      }
+    } 
+    state_ptr->latitude = GPS.latitude;
+    state_ptr->longitude = GPS.longitude;
+}
 
 
 
 
+
+// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
+SIGNAL(TIMER0_COMPA_vect) {
+  char c = GPS.read();
+  // if you want to debug, this is a good time to do it!
+#ifdef UDR0
+  if (GPSECHO)
+    if (c) UDR0 = c;  
+    // writing direct to UDR0 is much much faster than Serial.print 
+    // but only one character can be written at a time. 
+#endif
 }
 
 void deployBrakes(state *state_ptr) {
-  int percent = lookUpBrakes(state_ptr);
-  percent = map(percent, fromLow, fromHigh, toLow, toHigh);
+  percent = lookUpBrakes(state_ptr);
+  value = map(percent, fromLow, fromHigh, toLow, toHigh);
   if(pos > percent){
-    for (pos = percent; pos >= percent; pos -= 1) { // goes from 180 degrees to 0 degrees
+    for (pos = value; pos >= value; pos -= 1) { // goes from 180 degrees to 0 degrees
       myservo.write(pos);               // tell servo to go to position in variable 'pos'
       delay(3);                        // waits 15ms for the servo to reach the position
     }
   } else {
-    for (pos ; pos <= percent; pos += 1) { //goes from 0 degrees to the percentage from the lookup table
+    for (pos ; pos <= value; pos += 1) { //goes from 0 degrees to the percentage from the lookup table
       myservo.write(pos);                   // tell servo to go to position in variable 'pos'
       delay(3);                            // waits 15ms for the servo to reach the position
     }
   }
-  pos = percent;
+  pos = value;
 
 }
 
@@ -297,9 +325,9 @@ void serialize_state(boolean radio) {
     Serial.print(";");
     Serial.print(init_state.altitude);
     Serial.print(";");
-    Serial.print(init_state.latitude);
+    Serial.print(init_state.latitude, 4);
     Serial.print(";");
-    Serial.print(init_state.longitude);
+    Serial.print(init_state.longitude, 4);
     Serial.print(";");
     Serial.print(init_state.rocket.e_orient.pitch);
     Serial.print(";");
@@ -313,7 +341,16 @@ void serialize_state(boolean radio) {
     Serial.print(";");
     Serial.print(init_state.rocket.r_accel.z);
     Serial.print(";");
-    Serial.println(init_state.velocity);
+    Serial.print(init_state.velocity);
+    Serial.print(";");
+    Serial.print(percent);
+    Serial.print(";");
+    Serial.print(pos);
+    Serial.print(";");
+    Serial.print((int)GPS.fix);
+    Serial.print(";");
+    Serial.println((int)GPS.fixquality); 
+
 
   } else {
     myFile.print(millis());
@@ -337,6 +374,14 @@ void serialize_state(boolean radio) {
     myFile.print(init_state.rocket.r_accel.z);
     myFile.print(";");
     myFile.println(init_state.velocity);
+    myFile.print(";");
+    myFile.print(percent);
+    myFile.print(";");
+    myFile.print(pos);
+    myFile.print(";");
+    myFile.print((int)GPS.fix);
+    myFile.print(";");
+    myFile.println((int)GPS.fixquality); 
   }
 }
 
