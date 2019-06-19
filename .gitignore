@@ -1,5 +1,7 @@
 # Prerequisites
 *.d
+*.txt
+*.rocketlog
 
 # Object files
 *.o

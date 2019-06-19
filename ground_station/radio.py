@@ -31,6 +31,7 @@ def exit_AT_mode(opt):
 
     return ser.readline()
 
+
 ser = serial.Serial(
     port='/dev/ttyS4',
     baudrate=57600,
@@ -39,6 +40,8 @@ ser = serial.Serial(
     bytesize=serial.EIGHTBITS,
     timeout = 5
 )
+
+
 
 def flush_ser():
     ser.flushOutput()
@@ -56,14 +59,18 @@ def loop(f):
             response = ser.readline()
             print(response)
             f.write(str(response) + '\n')
+            time.sleep(0.1)
 
-    time.sleep(SLEEP_INTERVAL/4)
+    response = ser.readline()
+    print(response)
+
+    time.sleep(SLEEP_INTERVAL/8)
 
 
 if __name__ == '__main__':
     FILE_FORMAT = datetime.now()
 
-    f= open ("data_radio{}.txt".format(FILE_FORMAT), "w+")
+    f= open ("data_radio{}.rocketlog".format(FILE_FORMAT), "w+")
 
     print("=== Setup ===")
     setup()
