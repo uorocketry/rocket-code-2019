@@ -33,7 +33,7 @@ def exit_AT_mode(opt):
 
 
 ser = serial.Serial(
-    port='/dev/ttyS4',
+    port='/dev/ttyS3',
     baudrate=57600,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_ONE,
