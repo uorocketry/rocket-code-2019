@@ -36,6 +36,7 @@
                               general variables
 *******************************************************************************/
 boolean sensor_debug = false;
+int value2 = 0;
 
 typedef struct { //Euler angle struct (YOST)
   float pitch;
@@ -119,9 +120,9 @@ char fileName[] = "log.csv";
 /******************************************************************************
                               Servo variables
 *******************************************************************************/
-const int fromLow = 0; //these four variables are for the map() function
+const int fromLow = 10; //these four variables are for the map() function
 const int fromHigh = 100;
-const int toLow = 12;
+const int toLow = -10;
 const int toHigh = 102;
 int percent;
 Servo myservo;
@@ -156,6 +157,12 @@ void setup() {
   }
   p_0 = myPressure.readAltitude();
   useInterrupt(true);
+  for (pos = 12; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(50);                       // waits 15ms for the servo to reach the position
+  } 
+  myservo.detach();
+  
 
   delay(2000);
 }
@@ -275,10 +282,15 @@ SIGNAL(TIMER0_COMPA_vect) {
 }
 
 void deployBrakes(state *state_ptr) {
+  myservo.attach(6);   //Initialize Air Brake
+
   percent = lookUpBrakes(state_ptr);
-  value = map(percent, fromLow, fromHigh, toLow, toHigh);
-  if(pos > percent){
-    for (pos = value; pos >= value; pos -= 1) { // goes from 180 degrees to 0 degrees
+  value = map(percent, fromLow, fromHigh, toLow, toHigh); 
+  //if(abs(abs(value)-abs(value2))<=5){
+  //    value = value2;
+  //}
+  if(pos > value){
+    for (pos ; pos >= value; pos -= 1) { // goes from 180 degrees to 0 degrees
       myservo.write(pos);               // tell servo to go to position in variable 'pos'
       delay(3);                        // waits 15ms for the servo to reach the position
     }
@@ -288,7 +300,8 @@ void deployBrakes(state *state_ptr) {
       delay(3);                            // waits 15ms for the servo to reach the position
     }
   }
-  pos = value;
+  value2 = value;
+  myservo.detach();
 
 }
 
@@ -301,7 +314,7 @@ void logValues(state *state_ptr) {
   if (counter % 10 == 0) {
     //Serial.println(values_log_transmit);
     //serialize_state(state_ptr, true);
-    serialize_state(true);
+    //serialize_state(true);
 
     //Serial.write("\r\n");
   }
@@ -310,6 +323,8 @@ void logValues(state *state_ptr) {
   //myFile.println(values_log_transmit);
   //serialize_state(state_ptr, false);
   serialize_state(true);
+  serialize_state(false);
+
 
   //delay(100);
   myFile.close();
@@ -389,7 +404,7 @@ int lookUpBrakes(state *state_ptr) {
 
   unsigned int first_four_bits; // first four bits of the address
   //switch case sets first four bits of address based off the velocity
-  switch (int(state_ptr->velocity)) {
+  switch (abs(int(state_ptr->velocity))) {
     case 0 ... 49:
       first_four_bits = 0b0000;
       break;
@@ -456,7 +471,8 @@ int lookUpBrakes(state *state_ptr) {
   }
   //switch case last five bits of address based off the altitude
   unsigned int last_five_bits;
-  switch (int(state_ptr->altitude)) {
+  int alt = abs(int(state_ptr->altitude) - 1300);
+  switch (alt) {
     case 0 ... 99:
       last_five_bits = 0b00000;
       break;
@@ -586,16 +602,16 @@ int lookUpBrakes(state *state_ptr) {
       break;
   }
   //x is address
-  int x = first_four_bits * 16 + (last_five_bits / 2); // concatanates both adress components arithmetically
+  int x = first_four_bits * 16 + (last_five_bits); // concatanates both adress components arithmetically
   int b = EEPROM.read(x); // gets EEPROM value at address x(8 bit int)
-  int percent; // airbreak percent
-  if (last_five_bits % 2 == 0) { // if last 9th bit is 0 it uses the first 4 bits of EEPROM value at x
-    percent = b / 16; // divides by 16 getting rid of the last 4 bits, only leaving the first 4 bits
-  }
-  else {
-    percent = b - (b / 16) * 16; // gets last 4 bits
-  }
-  return percent; // return percent
+  //int percent; // airbreak percent
+  //if (last_five_bits % 2 == 0) { // if last 9th bit is 0 it uses the first 4 bits of EEPROM value at x
+  // percent = b / 16; // divides by 16 getting rid of the last 4 bits, only leaving the first 4 bits
+  //}
+  //else {
+  //  percent = b - (b / 16) * 16; // gets last 4 bits
+  //}
+  return b; // return percent
 
 }
 
